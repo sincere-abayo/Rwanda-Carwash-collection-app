@@ -148,6 +148,14 @@
       "action": "LOGIN",
       "table_name": "users",
       "record_id": 352902542,
+      "timestamp": 1787204240036,
+      "id": 1787204240048
+    },
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
       "timestamp": 1787203715197,
       "id": 1787203715202
     },

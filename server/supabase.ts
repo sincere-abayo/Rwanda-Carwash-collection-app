@@ -9,8 +9,8 @@ dotenv.config();
 const { Pool } = pg;
 
 // Supabase REST client configuration
-export const SUPABASE_URL = process.env.SUPABASE_URL || 'https://hwurrsoukorftvrmcwwj.supabase.co';
-export const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+export const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://hwurrsoukorftvrmcwwj.supabase.co';
+export const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '';
 
 // PostgreSQL Engine direct connection configuration
 export const PGHOST = process.env.PGHOST || 'db.hwurrsoukorftvrmcwwj.supabase.co';
@@ -54,8 +54,8 @@ export function getPgPool(): pg.Pool | null {
         ? {
             connectionString: DATABASE_URL,
             ssl: { rejectUnauthorized: false },
-            connectionTimeoutMillis: 5000,
-            max: 10,
+            connectionTimeoutMillis: 3000,
+            max: 5,
           }
         : {
             host: PGHOST,
@@ -64,8 +64,8 @@ export function getPgPool(): pg.Pool | null {
             password: PGPASSWORD,
             database: PGDATABASE,
             ssl: { rejectUnauthorized: false },
-            connectionTimeoutMillis: 5000,
-            max: 10,
+            connectionTimeoutMillis: 3000,
+            max: 5,
           };
 
       pgPoolInstance = new Pool(config);

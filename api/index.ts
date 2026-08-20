@@ -1,7 +1,3 @@
-import app, { ensureTablesInit } from "../server/app";
-import type { IncomingMessage, ServerResponse } from "http";
+import app from "../server/app";
 
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
-  await ensureTablesInit();
-  return app(req, res);
-}
+export default app;
