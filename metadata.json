@@ -1,0 +1,6 @@
+{
+  "name": "Rwanda Carwash Registry",
+  "description": "Offline-first PWA for collecting and managing carwash business data across Rwanda.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

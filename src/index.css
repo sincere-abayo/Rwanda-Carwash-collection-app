@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #155EEF;
+  --color-brand-dark: #0B3B8F;
+  --color-brand-success: #16A34A;
+  --color-brand-warning: #F59E0B;
+  --color-brand-danger: #DC2626;
+  --color-brand-info: #06B6D4;
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --radius: 12px;
+}
+
+body {
+  background-color: var(--color-background);
+  color: #0F172A;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
+}
+
+/* Hide scrollbar for clean mobile UI */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
