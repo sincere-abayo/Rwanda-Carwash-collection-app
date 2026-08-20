@@ -2,14 +2,14 @@
   "version": 2,
   "framework": "vite",
   "functions": {
-    "api/index.cjs": {
+    "api/index.js": {
       "maxDuration": 30
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.cjs"
+      "destination": "/api/index.js"
     },
     {
       "source": "/((?!api/).*)",
