@@ -7,6 +7,7 @@ import {
   logAuditEvent,
   seedDefaultUsers,
   syncAllLocalToSupabase,
+  resetAllDataKeepAdmin,
   initializeDatabaseTables,
   dbUpsertCarwash,
   dbDeleteCarwash,
@@ -189,16 +190,15 @@ apiRouter.post("/auth/login", async (req: Request, res: Response) => {
       }
     }
 
-    // Default admin and staff fallback if initial db is empty
+    // Default admin fallback if initial db is empty
     if (!matchedUser) {
-      if ((username === "admin" && (password === "password" || password === "admin123")) ||
-          (username === "staff" && (password === "password" || password === "staff123"))) {
+      if (username === 'admin' && (password === 'password' || password === 'admin123')) {
         matchedUser = {
-          id: username === "admin" ? "1" : "2",
-          username,
-          role: username === "admin" ? "admin" : "staff",
-          name: username === "admin" ? "System Administrator" : "Field Officer",
-          assigned_region: username === "admin" ? "National" : "Kigali City",
+          id: '1',
+          username: 'admin',
+          role: 'admin',
+          name: 'System Administrator',
+          assigned_region: 'National',
         };
       }
     }
@@ -440,7 +440,7 @@ apiRouter.get("/admin/users", async (req: Request, res: Response) => {
       try {
         let { data, error } = await supabase.from("users").select("id, username, role, name, assigned_region");
 
-        // If users table in Supabase is empty, automatically seed default admin & staff
+        // If users table in Supabase is empty, seed admin only
         if (!error && (!data || data.length === 0)) {
           await seedDefaultUsers();
           const refetch = await supabase.from("users").select("id, username, role, name, assigned_region");
@@ -486,6 +486,17 @@ apiRouter.post("/admin/sync-all", async (req: Request, res: Response) => {
   try {
     await ensureTablesInit();
     const result = await syncAllLocalToSupabase();
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Reset all data and keep admin only
+apiRouter.post("/admin/reset-data", async (req: Request, res: Response) => {
+  try {
+    await ensureTablesInit();
+    const result = await resetAllDataKeepAdmin();
     return res.json(result);
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });

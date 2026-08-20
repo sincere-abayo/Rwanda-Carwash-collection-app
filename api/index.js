@@ -80,8 +80,14 @@ var getDbFilePath = () => {
 var defaultLocalDb = {
   carwashes: {},
   users: {
-    "1": { id: 1, username: "admin", role: "admin", name: "System Admin", assigned_region: "National", password_hash: "password" },
-    "2": { id: 2, username: "staff", role: "field_officer", name: "Field Officer Kigali", assigned_region: "Kigali City", password_hash: "password" }
+    "1": {
+      id: 1,
+      username: "admin",
+      role: "admin",
+      name: "System Administrator",
+      assigned_region: "National",
+      password_hash: "admin123"
+    }
   },
   audit_logs: []
 };
@@ -545,13 +551,6 @@ async function seedDefaultUsers() {
       password_hash: "admin123",
       role: "admin",
       assigned_region: "National"
-    },
-    {
-      id: 2,
-      username: "staff",
-      password_hash: "staff123",
-      role: "field_officer",
-      assigned_region: "Kigali City"
     }
   ];
   const client = getSupabaseClient();
@@ -571,7 +570,7 @@ async function seedDefaultUsers() {
         }
         console.log(`[Supabase] Seeded ${usersToInsert.length} default user(s) into public.users`);
       } else {
-        console.log("[Supabase] Users table already has admin/staff seeded.");
+        console.log("[Supabase] Admin user already exists.");
       }
       await logAuditEvent({
         user_id: 1,
@@ -580,7 +579,7 @@ async function seedDefaultUsers() {
         record_id: 1
       });
       const { count } = await client.from("users").select("*", { count: "exact", head: true });
-      return { success: true, message: "Users seeded successfully into Supabase", count: count || 2 };
+      return { success: true, message: "Admin user seeded successfully into Supabase", count: count || 1 };
     } catch (err) {
       console.error("[Supabase Seed Exception]:", err);
       return { success: false, message: err.message || "Seed failed", count: 0 };
@@ -597,12 +596,74 @@ async function seedDefaultUsers() {
           [u.id, u.username, u.password_hash, u.role, u.assigned_region]
         );
       }
-      return { success: true, message: "Seeded via direct PostgreSQL pool", count: 2 };
+      return { success: true, message: "Seeded admin via direct PostgreSQL pool", count: 1 };
     } catch (err) {
       console.error("[PostgreSQL Pool Seed Error]:", err);
     }
   }
   return { success: false, message: "No Supabase or PG connection available", count: 0 };
+}
+var adminOnlyUser = {
+  id: "1",
+  username: "admin",
+  role: "admin",
+  name: "System Administrator",
+  assigned_region: "National",
+  password_hash: "admin123"
+};
+async function resetAllDataKeepAdmin() {
+  const localDb = readLocalDb();
+  const carwashCount = Object.keys(localDb.carwashes).length;
+  const usersRemoved = Object.values(localDb.users).filter((u) => u.username !== "admin").length;
+  writeLocalDb({
+    carwashes: {},
+    users: { "1": adminOnlyUser },
+    audit_logs: []
+  });
+  const adminRow = {
+    id: 1,
+    username: "admin",
+    password_hash: "admin123",
+    role: "admin",
+    assigned_region: "National"
+  };
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.from("audit_logs").delete().gte("id", 0);
+      await client.from("carwashes").delete().gte("id", 0);
+      await client.from("users").delete().neq("username", "admin");
+      await client.from("users").upsert([adminRow]);
+    } catch (err) {
+      console.warn("[Supabase Reset Error]:", err.message);
+    }
+  }
+  const pool = getPgPool();
+  if (pool) {
+    try {
+      await pool.query("DELETE FROM audit_logs");
+      await pool.query("DELETE FROM carwashes");
+      await pool.query("DELETE FROM users WHERE username <> 'admin'");
+      await pool.query(
+        `INSERT INTO public.users (id, username, password_hash, role, assigned_region)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET
+           username = EXCLUDED.username,
+           password_hash = EXCLUDED.password_hash,
+           role = EXCLUDED.role,
+           assigned_region = EXCLUDED.assigned_region`,
+        [adminRow.id, adminRow.username, adminRow.password_hash, adminRow.role, adminRow.assigned_region]
+      );
+    } catch (err) {
+      console.warn("[PostgreSQL Reset Error]:", err.message);
+    }
+  }
+  return {
+    success: true,
+    message: "All data cleared. Only the admin account remains.",
+    carwashesRemoved: carwashCount,
+    usersRemoved
+  };
 }
 async function logAuditEvent(entry) {
   const timestamp = Date.now();
@@ -774,13 +835,13 @@ apiRouter.post("/auth/login", async (req, res) => {
       }
     }
     if (!matchedUser) {
-      if (username === "admin" && (password === "password" || password === "admin123") || username === "staff" && (password === "password" || password === "staff123")) {
+      if (username === "admin" && (password === "password" || password === "admin123")) {
         matchedUser = {
-          id: username === "admin" ? "1" : "2",
-          username,
-          role: username === "admin" ? "admin" : "staff",
-          name: username === "admin" ? "System Administrator" : "Field Officer",
-          assigned_region: username === "admin" ? "National" : "Kigali City"
+          id: "1",
+          username: "admin",
+          role: "admin",
+          name: "System Administrator",
+          assigned_region: "National"
         };
       }
     }
@@ -1033,6 +1094,15 @@ apiRouter.post("/admin/sync-all", async (req, res) => {
   try {
     await ensureTablesInit();
     const result = await syncAllLocalToSupabase();
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+apiRouter.post("/admin/reset-data", async (req, res) => {
+  try {
+    await ensureTablesInit();
+    const result = await resetAllDataKeepAdmin();
     return res.json(result);
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

@@ -132,10 +132,16 @@ export interface FallbackDatabase {
 const defaultLocalDb: FallbackDatabase = {
   carwashes: {},
   users: {
-    '1': { id: 1, username: 'admin', role: 'admin', name: 'System Admin', assigned_region: 'National', password_hash: 'password' },
-    '2': { id: 2, username: 'staff', role: 'field_officer', name: 'Field Officer Kigali', assigned_region: 'Kigali City', password_hash: 'password' }
+    '1': {
+      id: 1,
+      username: 'admin',
+      role: 'admin',
+      name: 'System Administrator',
+      assigned_region: 'National',
+      password_hash: 'admin123',
+    },
   },
-  audit_logs: []
+  audit_logs: [],
 };
 
 let memoryDbCache: FallbackDatabase = { ...defaultLocalDb };
@@ -666,13 +672,6 @@ export async function seedDefaultUsers(): Promise<{ success: boolean; message: s
       role: 'admin',
       assigned_region: 'National',
     },
-    {
-      id: 2,
-      username: 'staff',
-      password_hash: 'staff123',
-      role: 'field_officer',
-      assigned_region: 'Kigali City',
-    },
   ];
 
   const client = getSupabaseClient();
@@ -698,7 +697,7 @@ export async function seedDefaultUsers(): Promise<{ success: boolean; message: s
         }
         console.log(`[Supabase] Seeded ${usersToInsert.length} default user(s) into public.users`);
       } else {
-        console.log('[Supabase] Users table already has admin/staff seeded.');
+        console.log('[Supabase] Admin user already exists.');
       }
 
       // Also log audit
@@ -710,7 +709,7 @@ export async function seedDefaultUsers(): Promise<{ success: boolean; message: s
       });
 
       const { count } = await client.from('users').select('*', { count: 'exact', head: true });
-      return { success: true, message: 'Users seeded successfully into Supabase', count: count || 2 };
+      return { success: true, message: 'Admin user seeded successfully into Supabase', count: count || 1 };
     } catch (err: any) {
       console.error('[Supabase Seed Exception]:', err);
       return { success: false, message: err.message || 'Seed failed', count: 0 };
@@ -729,13 +728,88 @@ export async function seedDefaultUsers(): Promise<{ success: boolean; message: s
           [u.id, u.username, u.password_hash, u.role, u.assigned_region]
         );
       }
-      return { success: true, message: 'Seeded via direct PostgreSQL pool', count: 2 };
+      return { success: true, message: 'Seeded admin via direct PostgreSQL pool', count: 1 };
     } catch (err: any) {
       console.error('[PostgreSQL Pool Seed Error]:', err);
     }
   }
 
   return { success: false, message: 'No Supabase or PG connection available', count: 0 };
+}
+
+const adminOnlyUser = {
+  id: '1',
+  username: 'admin',
+  role: 'admin',
+  name: 'System Administrator',
+  assigned_region: 'National',
+  password_hash: 'admin123',
+};
+
+/** Wipe all carwashes, audit logs, and non-admin users locally and in Supabase/PostgreSQL. */
+export async function resetAllDataKeepAdmin(): Promise<{
+  success: boolean;
+  message: string;
+  carwashesRemoved: number;
+  usersRemoved: number;
+}> {
+  const localDb = readLocalDb();
+  const carwashCount = Object.keys(localDb.carwashes).length;
+  const usersRemoved = Object.values(localDb.users).filter((u: any) => u.username !== 'admin').length;
+
+  writeLocalDb({
+    carwashes: {},
+    users: { '1': adminOnlyUser },
+    audit_logs: [],
+  });
+
+  const adminRow: SupabaseUserRow = {
+    id: 1,
+    username: 'admin',
+    password_hash: 'admin123',
+    role: 'admin',
+    assigned_region: 'National',
+  };
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.from('audit_logs').delete().gte('id', 0);
+      await client.from('carwashes').delete().gte('id', 0);
+      await client.from('users').delete().neq('username', 'admin');
+      await client.from('users').upsert([adminRow]);
+    } catch (err: any) {
+      console.warn('[Supabase Reset Error]:', err.message);
+    }
+  }
+
+  const pool = getPgPool();
+  if (pool) {
+    try {
+      await pool.query('DELETE FROM audit_logs');
+      await pool.query('DELETE FROM carwashes');
+      await pool.query("DELETE FROM users WHERE username <> 'admin'");
+      await pool.query(
+        `INSERT INTO public.users (id, username, password_hash, role, assigned_region)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET
+           username = EXCLUDED.username,
+           password_hash = EXCLUDED.password_hash,
+           role = EXCLUDED.role,
+           assigned_region = EXCLUDED.assigned_region`,
+        [adminRow.id, adminRow.username, adminRow.password_hash, adminRow.role, adminRow.assigned_region]
+      );
+    } catch (err: any) {
+      console.warn('[PostgreSQL Reset Error]:', err.message);
+    }
+  }
+
+  return {
+    success: true,
+    message: 'All data cleared. Only the admin account remains.',
+    carwashesRemoved: carwashCount,
+    usersRemoved,
+  };
 }
 
 // Log audit event to PostgreSQL / Supabase

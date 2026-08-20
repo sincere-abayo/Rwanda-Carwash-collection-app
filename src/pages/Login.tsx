@@ -177,30 +177,18 @@ export function Login() {
             <p className="text-[11px] uppercase font-bold tracking-wider text-slate-400 text-center mb-2.5">
               Quick Demo Access
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <button
                 type="button"
                 id="quick-fill-admin"
                 onClick={() => {
                   setUsername('admin');
-                  setPassword('password');
+                  setPassword('admin123');
                 }}
                 className="p-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-blue-500 text-left text-xs transition active:scale-95"
               >
                 <span className="font-semibold text-blue-400 block">Admin</span>
-                <span className="text-[10px] text-slate-400">admin / password</span>
-              </button>
-              <button
-                type="button"
-                id="quick-fill-staff"
-                onClick={() => {
-                  setUsername('staff');
-                  setPassword('password');
-                }}
-                className="p-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-emerald-500 text-left text-xs transition active:scale-95"
-              >
-                <span className="font-semibold text-emerald-400 block">Field Officer</span>
-                <span className="text-[10px] text-slate-400">staff / password</span>
+                <span className="text-[10px] text-slate-400">admin / admin123</span>
               </button>
             </div>
 
