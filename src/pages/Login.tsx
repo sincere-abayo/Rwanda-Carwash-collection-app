@@ -3,6 +3,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { LogIn, Loader2, Droplets, CheckCircle2, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { promptInstall } from '../components/InstallPwaPrompt';
+import { clearLocalRegistry } from '../db/client';
+import { performSync } from '../hooks/useSyncEngine';
 
 export function Login() {
   const [username, setUsername] = useState('');
@@ -41,6 +43,10 @@ export function Login() {
       if (!res.ok) throw new Error(data?.error || 'Invalid username or password.');
       
       login(data.user, data.token);
+
+      // Drop stale IndexedDB registry, then pull server truth
+      await clearLocalRegistry();
+      await performSync().catch((err) => console.warn('[Login] Initial sync:', err));
       
       if (data.user.role === 'admin') {
         navigate('/admin');

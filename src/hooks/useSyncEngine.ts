@@ -29,28 +29,21 @@ export async function performSync(): Promise<void> {
     if (!response.ok) throw new Error('Sync request failed');
     const data = await response.json();
 
-    // Update local DB with server truth
+    // Replace local registry with server truth (so deletes / resets clear IndexedDB too)
     await db.transaction('rw', db.carwashes, db.sync_queue, async () => {
-      // Clear successfully synced operations
       if (pendingOperations.length > 0) {
-        const opIds = pendingOperations.map(op => op.id);
-        await db.sync_queue.bulkDelete(opIds);
+        await db.sync_queue.bulkDelete(pendingOperations.map((op) => op.id));
       }
 
-      // Mark local as synced
-      const pendingCarwashes = pendingOperations.map(op => op.payload?.id).filter(Boolean);
-      for (const id of pendingCarwashes) {
-        await db.carwashes.update(id, { sync_status: 'SYNCED' });
-      }
+      await db.carwashes.clear();
 
-      // Apply incoming server updates
-      if (data.carwashes && Array.isArray(data.carwashes)) {
-        for (const serverRecord of data.carwashes) {
-          await db.carwashes.put({
-            ...serverRecord,
-            sync_status: 'SYNCED'
-          });
-        }
+      const serverRecords = Array.isArray(data.carwashes) ? data.carwashes : [];
+      for (const serverRecord of serverRecords) {
+        await db.carwashes.put({
+          ...serverRecord,
+          id: String(serverRecord.id),
+          sync_status: 'SYNCED',
+        });
       }
     });
 

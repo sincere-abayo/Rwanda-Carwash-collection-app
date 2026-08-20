@@ -44,3 +44,11 @@ export class CarwashDatabase extends Dexie {
 }
 
 export const db = new CarwashDatabase();
+
+/** Wipe all local registry data (IndexedDB). Call after server reset or on fresh login sync. */
+export async function clearLocalRegistry(): Promise<void> {
+  await db.transaction('rw', db.carwashes, db.sync_queue, async () => {
+    await db.carwashes.clear();
+    await db.sync_queue.clear();
+  });
+}
