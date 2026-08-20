@@ -116,7 +116,12 @@ export interface SupabaseAuditLogRow {
 }
 
 // Local cache and fallback storage
-const DB_FILE = path.join(process.cwd(), 'db.json');
+const getDbFilePath = (): string => {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join('/tmp', 'db.json');
+  }
+  return path.join(process.cwd(), 'db.json');
+};
 
 export interface FallbackDatabase {
   carwashes: Record<string, any>;
@@ -127,30 +132,44 @@ export interface FallbackDatabase {
 const defaultLocalDb: FallbackDatabase = {
   carwashes: {},
   users: {
-    '1': { id: 1, username: 'admin', role: 'admin', name: 'System Admin', assigned_region: 'National' },
-    '2': { id: 2, username: 'staff', role: 'field_officer', name: 'Field Officer Kigali', assigned_region: 'Kigali City' }
+    '1': { id: 1, username: 'admin', role: 'admin', name: 'System Admin', assigned_region: 'National', password_hash: 'password' },
+    '2': { id: 2, username: 'staff', role: 'field_officer', name: 'Field Officer Kigali', assigned_region: 'Kigali City', password_hash: 'password' }
   },
   audit_logs: []
 };
 
+let memoryDbCache: FallbackDatabase = { ...defaultLocalDb };
+
 export function readLocalDb(): FallbackDatabase {
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify(defaultLocalDb, null, 2));
-    return defaultLocalDb;
-  }
+  const filePath = getDbFilePath();
   try {
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+    if (!fs.existsSync(filePath)) {
+      try {
+        fs.writeFileSync(filePath, JSON.stringify(defaultLocalDb, null, 2));
+      } catch {
+        // Read-only filesystem fallback
+      }
+      return memoryDbCache;
+    }
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     if (!data.audit_logs) data.audit_logs = [];
     if (!data.users) data.users = defaultLocalDb.users;
     if (!data.carwashes) data.carwashes = {};
+    memoryDbCache = data;
     return data;
   } catch {
-    return defaultLocalDb;
+    return memoryDbCache;
   }
 }
 
 export function writeLocalDb(data: FallbackDatabase) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+  memoryDbCache = data;
+  try {
+    const filePath = getDbFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch {
+    // In-memory fallback if disk is read-only
+  }
 }
 
 // Ensure all database tables exist in PostgreSQL

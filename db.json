@@ -1,0 +1,371 @@
+{
+  "carwashes": {
+    "751e7a84-83ac-4bfb-baed-140e330b24d3": {
+      "id": "751e7a84-83ac-4bfb-baed-140e330b24d3",
+      "name": "clean r",
+      "province": "Kigali City",
+      "district": "Kicukiro",
+      "sector": "Niboye",
+      "address": "KK 15 Rd",
+      "contact_name": "Sincere CodeSaint",
+      "phone": "0732286284",
+      "status": "active",
+      "verification_status": "verified",
+      "created_at": "2026-08-20T01:47:14.796Z",
+      "updated_at": "2026-08-20T01:47:14.796Z",
+      "created_by": "staff1",
+      "sync_status": "PENDING"
+    },
+    "80addb3d-cff9-4aa3-8e3b-cff65a195754": {
+      "id": "80addb3d-cff9-4aa3-8e3b-cff65a195754",
+      "name": "jjj",
+      "province": "Northern Province",
+      "district": "Gicumbi",
+      "sector": "Rukomo",
+      "address": "24G5+53Q",
+      "contact_name": "j",
+      "phone": "0732286284",
+      "status": "active",
+      "verification_status": "verified",
+      "created_at": "2026-08-20T01:47:48.673Z",
+      "updated_at": "2026-08-20T01:47:48.673Z",
+      "created_by": "staff1",
+      "sync_status": "PENDING"
+    },
+    "3e399b58-f2bf-4c7b-b635-3570940f04da": {
+      "id": "3e399b58-f2bf-4c7b-b635-3570940f04da",
+      "name": "auto serve",
+      "province": "Eastern Province",
+      "district": "Bugesera",
+      "sector": "Rweru",
+      "address": "near giporoso",
+      "contact_name": "test user",
+      "phone": "0788788",
+      "status": "active",
+      "verification_status": "verified",
+      "created_at": "2026-08-20T03:02:09.227Z",
+      "updated_at": "2026-08-20T03:02:57.986Z",
+      "created_by": "staff1",
+      "sync_status": "PENDING"
+    },
+    "cfac3e3f-8e35-4ab7-b5f9-1767ebf306e1": {
+      "id": "cfac3e3f-8e35-4ab7-b5f9-1767ebf306e1",
+      "name": "my carwash",
+      "province": "Kigali City",
+      "district": "Kicukiro",
+      "sector": "Kigarama",
+      "address": "kwa masasu",
+      "contact_name": "",
+      "phone": "",
+      "notes": "",
+      "status": "active",
+      "verification_status": "verified",
+      "created_at": "2026-08-20T03:08:37.172Z",
+      "updated_at": "2026-08-20T04:55:37.951Z",
+      "created_by": "admin",
+      "sync_status": "SYNCED"
+    },
+    "2dfd4ed0-3ff9-4657-a779-118def23c1ce": {
+      "id": "2dfd4ed0-3ff9-4657-a779-118def23c1ce",
+      "name": "inner",
+      "province": "Kigali City",
+      "district": "Gasabo",
+      "sector": "Gatsata",
+      "address": "near mereze",
+      "contact_name": "henriite",
+      "phone": "07878888",
+      "notes": "have machines",
+      "lat": -1.98026,
+      "lng": 30.101894,
+      "status": "active",
+      "verification_status": "verified",
+      "created_at": "2026-08-20T04:32:42.385Z",
+      "updated_at": "2026-08-20T04:34:30.810Z",
+      "created_by": "admin",
+      "sync_status": "SYNCED"
+    },
+    "182c417b-003c-49ca-8a41-8ffd88764204": {
+      "id": "182c417b-003c-49ca-8a41-8ffd88764204",
+      "name": "inner 2",
+      "province": "Kigali City",
+      "district": "Kicukiro",
+      "sector": "Kicukiro",
+      "address": "KK 15 Rd",
+      "contact_name": "Sincere CodeSaint",
+      "phone": "+250732286284",
+      "notes": "nmmmmmmmmmmm",
+      "lat": -1.98026,
+      "lng": 30.101894,
+      "status": "active",
+      "verification_status": "verified",
+      "created_at": "2026-08-20T04:35:01.689Z",
+      "updated_at": "2026-08-20T04:35:02.084Z",
+      "created_by": "staff1",
+      "sync_status": "SYNCED"
+    },
+    "6500e9d3-2ae2-4bb7-8e5c-30d3e627b6d8": {
+      "id": "6500e9d3-2ae2-4bb7-8e5c-30d3e627b6d8",
+      "name": "Unnamed Carwash",
+      "province": "Northern Province",
+      "district": "Musanze",
+      "sector": "Muko",
+      "address": "near muganga",
+      "contact_name": "",
+      "phone": "",
+      "notes": "",
+      "status": "active",
+      "verification_status": "verified",
+      "created_at": "2026-08-20T04:44:23.887Z",
+      "updated_at": "2026-08-20T04:44:29.418Z",
+      "created_by": "admin",
+      "sync_status": "SYNCED"
+    }
+  },
+  "users": {
+    "admin": {
+      "id": "admin",
+      "username": "admin",
+      "role": "admin",
+      "name": "System Admin"
+    },
+    "staff1": {
+      "id": "staff1",
+      "username": "staff",
+      "role": "staff",
+      "name": "Field Officer 1"
+    },
+    "1787200586270056": {
+      "id": "1787200586270056",
+      "username": "swe",
+      "name": "sss",
+      "role": "field_officer",
+      "assigned_region": "Kigali City"
+    }
+  },
+  "audit_logs": [
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
+      "timestamp": 1787203715197,
+      "id": 1787203715202
+    },
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
+      "timestamp": 1787203610496,
+      "id": 1787203610537
+    },
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
+      "timestamp": 1787203190299,
+      "id": 1787203190370
+    },
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
+      "timestamp": 1787202678287,
+      "id": 1787202678330
+    },
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
+      "timestamp": 1787202500537,
+      "id": 1787202500585
+    },
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
+      "timestamp": 1787201813971,
+      "id": 1787201814009
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 919143025,
+      "timestamp": 1787201737951,
+      "id": 1787201737957
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 919143025,
+      "timestamp": 1787201737950,
+      "id": 1787201737956
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 919143025,
+      "timestamp": 1787201737880,
+      "id": 1787201737887
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 919143025,
+      "timestamp": 1787201737877,
+      "id": 1787201737884
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 126629307,
+      "timestamp": 1787201069418,
+      "id": 1787201069430
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 126629307,
+      "timestamp": 1787201069417,
+      "id": 1787201069427
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 126629307,
+      "timestamp": 1787201069414,
+      "id": 1787201069422
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 126629307,
+      "timestamp": 1787201069410,
+      "id": 1787201069421
+    },
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
+      "timestamp": 1787200981601,
+      "id": 1787200981642
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 919143025,
+      "timestamp": 1787200936097,
+      "id": 1787200936104
+    },
+    {
+      "user_id": 352902542,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 919143025,
+      "timestamp": 1787200936094,
+      "id": 1787200936100
+    },
+    {
+      "user_id": 1,
+      "action": "INSERT",
+      "table_name": "users",
+      "record_id": 1787200586270056,
+      "timestamp": 1787200586271,
+      "id": 1787200586308
+    },
+    {
+      "user_id": 352902542,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 352902542,
+      "timestamp": 1787200509406,
+      "id": 1787200509413
+    },
+    {
+      "user_id": 578826378,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 578826378,
+      "timestamp": 1787200470369,
+      "id": 1787200470408
+    },
+    {
+      "user_id": 1092668751,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 1092668751,
+      "timestamp": 1787200248665,
+      "id": 1787200248788
+    },
+    {
+      "user_id": 1092668751,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 1092668751,
+      "timestamp": 1787200174184,
+      "id": 1787200174262
+    },
+    {
+      "user_id": 1092668751,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 1092668751,
+      "timestamp": 1787200012321,
+      "id": 1787200012361
+    },
+    {
+      "user_id": 1092668751,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 1092668751,
+      "timestamp": 1787199736722,
+      "id": 1787199736774
+    },
+    {
+      "user_id": 1092668751,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 1092668751,
+      "timestamp": 1787199487695,
+      "id": 1787199487762
+    },
+    {
+      "user_id": 1092668751,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 1092668751,
+      "timestamp": 1787199316361,
+      "id": 1787199316362
+    },
+    {
+      "user_id": 1092668751,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 1092668751,
+      "timestamp": 1787199293558,
+      "id": 1787199293558
+    },
+    {
+      "user_id": 4402471761,
+      "action": "LOGIN",
+      "table_name": "users",
+      "record_id": 4402471761,
+      "timestamp": 1787199241311,
+      "id": 1787199241311
+    }
+  ]
+}
