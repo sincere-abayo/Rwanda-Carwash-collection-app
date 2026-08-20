@@ -14,6 +14,7 @@ import {
   dbDeleteUser,
   readLocalDb,
   writeLocalDb,
+  withTimeout,
   type SupabaseCarwashRow,
   type SupabaseUserRow,
 } from "./supabase";
@@ -21,8 +22,17 @@ import {
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// Guard against double body-parsing in Vercel/Serverless environments which causes hangs
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.body !== undefined && req.body !== null) {
+    return next();
+  }
+  express.json({ limit: "50mb" })(req, res, (err) => {
+    if (err) return next(err);
+    express.urlencoded({ extended: true, limit: "50mb" })(req, res, next);
+  });
+});
 
 // Serverless helper middleware: ensure body is parsed even if upstream passed string
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -116,7 +126,7 @@ apiRouter.get("/db-status", async (req: Request, res: Response) => {
 // Auth Login Endpoint
 apiRouter.post("/auth/login", async (req: Request, res: Response) => {
   try {
-    await ensureTablesInit();
+    ensureTablesInit().catch(() => {});
     const { username, password } = req.body || {};
     
     if (!username || !password) {
@@ -128,11 +138,14 @@ apiRouter.post("/auth/login", async (req: Request, res: Response) => {
 
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("username", username)
-          .maybeSingle();
+        const { data, error } = await withTimeout<any>(
+          supabase
+            .from("users")
+            .select("*")
+            .eq("username", username)
+            .maybeSingle() as any,
+          3000
+        );
 
         if (data && !error) {
           if (

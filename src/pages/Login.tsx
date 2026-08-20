@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { LogIn, Loader2, Droplets, CheckCircle2 } from 'lucide-react';
+import { LogIn, Loader2, Droplets, CheckCircle2, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { promptInstall } from '../components/InstallPwaPrompt';
 
 export function Login() {
   const [username, setUsername] = useState('');
@@ -30,8 +31,14 @@ export function Login() {
         body: JSON.stringify({ username, password })
       });
       
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Invalid credentials.');
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`Server returned status ${res.status}. Please check network or API connection.`);
+      }
+
+      if (!res.ok) throw new Error(data?.error || 'Invalid username or password.');
       
       login(data.user, data.token);
       
@@ -164,6 +171,52 @@ export function Login() {
               <span>Sign In to System</span>
             </button>
           </form>
+
+          {/* Quick Demo Access Pills */}
+          <div className="mt-6 pt-5 border-t border-slate-700/60">
+            <p className="text-[11px] uppercase font-bold tracking-wider text-slate-400 text-center mb-2.5">
+              Quick Demo Access
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                id="quick-fill-admin"
+                onClick={() => {
+                  setUsername('admin');
+                  setPassword('password');
+                }}
+                className="p-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-blue-500 text-left text-xs transition active:scale-95"
+              >
+                <span className="font-semibold text-blue-400 block">Admin</span>
+                <span className="text-[10px] text-slate-400">admin / password</span>
+              </button>
+              <button
+                type="button"
+                id="quick-fill-staff"
+                onClick={() => {
+                  setUsername('staff');
+                  setPassword('password');
+                }}
+                className="p-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-emerald-500 text-left text-xs transition active:scale-95"
+              >
+                <span className="font-semibold text-emerald-400 block">Field Officer</span>
+                <span className="text-[10px] text-slate-400">staff / password</span>
+              </button>
+            </div>
+
+            {/* PWA Install Trigger */}
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                id="login-install-app-btn"
+                onClick={promptInstall}
+                className="inline-flex items-center gap-2 text-xs font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-950/40 border border-emerald-800/40 px-3.5 py-2 rounded-xl hover:bg-emerald-900/40 transition active:scale-95"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Install Rwanda Carwash App (PWA)
+              </button>
+            </div>
+          </div>
 
         </div>
       </div>

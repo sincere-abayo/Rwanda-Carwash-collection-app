@@ -48,14 +48,14 @@ export function getSupabaseClient(): SupabaseClient | null {
 export function getPgPool(): pg.Pool | null {
   if (pgPoolInstance) return pgPoolInstance;
   
-  if (DATABASE_URL || (PGHOST && PGPASSWORD)) {
+  if (DATABASE_URL || (PGPASSWORD && PGHOST)) {
     try {
       const config: pg.PoolConfig = DATABASE_URL
         ? {
             connectionString: DATABASE_URL,
             ssl: { rejectUnauthorized: false },
-            connectionTimeoutMillis: 3000,
-            max: 5,
+            connectionTimeoutMillis: 2000,
+            max: 2,
           }
         : {
             host: PGHOST,
@@ -64,18 +64,18 @@ export function getPgPool(): pg.Pool | null {
             password: PGPASSWORD,
             database: PGDATABASE,
             ssl: { rejectUnauthorized: false },
-            connectionTimeoutMillis: 3000,
-            max: 5,
+            connectionTimeoutMillis: 2000,
+            max: 2,
           };
 
       pgPoolInstance = new Pool(config);
       pgPoolInstance.on('error', (err) => {
         console.warn('[PostgreSQL Pool Error]:', err.message);
       });
-      console.log(`[PostgreSQL Engine] Pool initialized connecting to ${PGHOST}:${PGPORT}`);
+      console.log(`[PostgreSQL Engine] Pool initialized`);
       return pgPoolInstance;
-    } catch (err) {
-      console.error('[PostgreSQL Engine] Failed to initialize pool:', err);
+    } catch (err: any) {
+      console.warn('[PostgreSQL Engine] Pool skipped:', err.message);
       return null;
     }
   }
@@ -234,6 +234,19 @@ export async function initializeDatabaseTables(): Promise<void> {
   } catch (err: any) {
     console.warn('[PostgreSQL Engine] Table init notice:', err.message);
   }
+}
+
+// Timeout wrapper to safeguard external requests in serverless environments
+export async function withTimeout<T>(promise: Promise<T>, ms = 3000): Promise<T> {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Operation timed out after ${ms}ms`));
+    }, ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
 }
 
 // Convert any string or numeric ID into a valid PostgreSQL int8 bigint

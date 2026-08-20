@@ -1,10 +1,11 @@
-import { Home, List, Users, Plus, LogOut, ShieldCheck, RefreshCw, Cloud, CloudOff } from 'lucide-react';
+import { Home, List, Users, Plus, LogOut, ShieldCheck, RefreshCw, Cloud, CloudOff, Download } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSyncStore } from '../store/useSyncStore';
 import { useSyncEngine } from '../hooks/useSyncEngine';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/client';
+import { promptInstall } from './InstallPwaPrompt';
 
 export function BottomNav() {
   const { user, logout } = useAuthStore();
@@ -118,6 +119,20 @@ export function BottomNav() {
                   </div>
                 </button>
               )}
+
+              <button
+                id="nav-btn-install-app"
+                onClick={promptInstall}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${inactiveHover} text-emerald-300 hover:text-emerald-200`}
+              >
+                <div className="flex items-center gap-3">
+                  <Download className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                  <span>Install App</span>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">
+                  PWA
+                </span>
+              </button>
             </nav>
           </div>
         </div>
@@ -225,7 +240,7 @@ export function BottomNav() {
           <span className="text-[10px] mt-0.5 tracking-wide">Register</span>
         </button>
 
-        {!isStaff && (
+        {!isStaff ? (
           <button
             id="mobile-nav-staff"
             onClick={() => navigate('/admin/users')}
@@ -237,6 +252,15 @@ export function BottomNav() {
           >
             <Users className="w-5 h-5" />
             <span className="text-[10px] mt-0.5 tracking-wide">Staff</span>
+          </button>
+        ) : (
+          <button
+            id="mobile-nav-install"
+            onClick={promptInstall}
+            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all text-emerald-500 hover:text-emerald-400"
+          >
+            <Download className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5 tracking-wide font-medium">Install</span>
           </button>
         )}
       </nav>

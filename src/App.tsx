@@ -9,6 +9,7 @@ import { Registry } from './pages/Registry';
 import { UserManagement } from './pages/UserManagement';
 import { useSyncEngine } from './hooks/useSyncEngine';
 import { Layout } from './components/Layout';
+import { InstallPwaPrompt } from './components/InstallPwaPrompt';
 
 function ProtectedRoute({ children, allowedRole }: { children: React.ReactNode, allowedRole?: 'admin' | 'staff' }) {
   const user = useAuthStore(state => state.user);
@@ -39,23 +40,26 @@ export default function App() {
   useSyncEngine();
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingOrLogin />} />
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      
-      {/* Shared Routes */}
-      <Route path="/register" element={<ProtectedRoute><RegisterCarwash /></ProtectedRoute>} />
-      <Route path="/registry" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
+    <>
+      <InstallPwaPrompt />
+      <Routes>
+        <Route path="/" element={<LandingOrLogin />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        
+        {/* Shared Routes */}
+        <Route path="/register" element={<ProtectedRoute><RegisterCarwash /></ProtectedRoute>} />
+        <Route path="/registry" element={<ProtectedRoute><Registry /></ProtectedRoute>} />
 
-      {/* Field Staff Routes */}
-      <Route path="/field" element={<ProtectedRoute allowedRole="staff"><FieldDashboard /></ProtectedRoute>} />
-      
-      {/* Admin Routes */}
-      <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>} />
-      <Route path="/admin/users" element={<ProtectedRoute allowedRole="admin"><UserManagement /></ProtectedRoute>} />
-      
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Field Staff Routes */}
+        <Route path="/field" element={<ProtectedRoute allowedRole="staff"><FieldDashboard /></ProtectedRoute>} />
+        
+        {/* Admin Routes */}
+        <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute allowedRole="admin"><UserManagement /></ProtectedRoute>} />
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 
