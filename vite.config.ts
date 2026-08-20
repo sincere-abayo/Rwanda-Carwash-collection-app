@@ -11,8 +11,17 @@ export default defineConfig(() => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: 'auto',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+        injectRegister: false,
+        includeAssets: [
+          'favicon.ico',
+          'favicon-32x32.png',
+          'apple-touch-icon.png',
+          'mask-icon.svg',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'pwa-192x192-maskable.png',
+          'pwa-512x512-maskable.png',
+        ],
         manifest: {
           name: 'Rwanda Carwash Registry',
           short_name: 'Carwash Registry',
@@ -24,28 +33,46 @@ export default defineConfig(() => {
           orientation: 'portrait',
           theme_color: '#0B3B8F',
           background_color: '#F8FAFC',
+          categories: ['business', 'productivity'],
           icons: [
             {
               src: '/pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any',
             },
             {
               src: '/pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
-            }
-          ]
+              purpose: 'any',
+            },
+            {
+              src: '/pwa-192x192-maskable.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+            {
+              src: '/pwa-512x512-maskable.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
         },
         devOptions: {
-          enabled: true
+          enabled: true,
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
           navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
+            {
+              urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+              handler: 'NetworkOnly',
+            },
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'CacheFirst',
@@ -53,15 +80,15 @@ export default defineConfig(() => {
                 cacheName: 'google-fonts-cache',
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
                 },
                 cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            }
-          ]
-        }
+                  statuses: [0, 200],
+                },
+              },
+            },
+          ],
+        },
       })
     ],
     resolve: {

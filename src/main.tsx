@@ -4,6 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { registerSW } from 'virtual:pwa-register';
+import { captureInstallPromptEarly } from './components/InstallPwaPrompt';
+
+// Capture native install event before React mounts (otherwise it can be lost)
+captureInstallPromptEarly();
 
 // Register PWA service worker with auto-update
 const updateSW = registerSW({
