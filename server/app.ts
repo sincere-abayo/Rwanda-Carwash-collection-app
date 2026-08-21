@@ -304,10 +304,10 @@ apiRouter.delete("/carwashes/:id", async (req: Request, res: Response) => {
 apiRouter.post("/sync", async (req: Request, res: Response) => {
   try {
     await ensureTablesInit();
-    const { mutations, lastSync } = req.body || {};
+    const { mutations } = req.body || {};
     const conflicts: any[] = [];
 
-    // 1. Process incoming mutations using Supabase/PG database wrappers
+    // 1. Apply client create mutations only (upserts). Deletes/updates are server-side when online.
     if (mutations && Array.isArray(mutations)) {
       for (const mutation of mutations) {
         const payload = mutation.payload;
@@ -315,8 +315,10 @@ apiRouter.post("/sync", async (req: Request, res: Response) => {
 
         try {
           if (mutation.type === "upsert_carwash") {
+            // Only accept creates / field-collected upserts; never revive a deleted id from stale offline cache
             await dbUpsertCarwash(payload);
           } else if (mutation.type === "delete_carwash") {
+            // Legacy queue items: still honor once, then clients stop enqueueing deletes offline
             await dbDeleteCarwash(payload.id);
           }
         } catch (mErr) {
@@ -325,28 +327,32 @@ apiRouter.post("/sync", async (req: Request, res: Response) => {
       }
     }
 
-    // 2. Fetch latest state from Supabase PostgreSQL (or fallback)
+    // 2. Server is source of truth — return full snapshot (including empty = all deleted)
     const supabase = getSupabaseClient();
     let carwashesList: any[] = [];
+    let fromServer = false;
+
     if (supabase) {
       try {
         const { data, error } = await supabase.from("carwashes").select("*");
-        if (data && !error && data.length > 0) {
-          carwashesList = data.map((r: SupabaseCarwashRow) => ({
+        if (!error) {
+          fromServer = true;
+          carwashesList = (data || []).map((r: SupabaseCarwashRow) => ({
             id: r.id.toString(),
             name: r.name,
             province: r.province,
             district: r.district,
-            sector: r.sector,
+            sector: r.sector || "",
             address: r.physical_address,
             contact_name: r.primary_contact,
             phone: r.phone_number,
             status: r.status as any,
             verification_status: "verified" as const,
             sync_status: "SYNCED" as const,
+            registration_date: new Date(Number(r.registration_date)).toISOString(),
             created_at: new Date(Number(r.registration_date)).toISOString(),
             updated_at: new Date(Number(r.registration_date)).toISOString(),
-            created_by: r.field_officer_id.toString(),
+            created_by: r.field_officer_id?.toString?.() || "1",
             version: r.version,
           }));
         }
@@ -355,8 +361,8 @@ apiRouter.post("/sync", async (req: Request, res: Response) => {
       }
     }
 
-    // Fallback if empty or Supabase not connected
-    if (carwashesList.length === 0) {
+    // Fallback only when Supabase is unavailable — never when server returned an empty valid list
+    if (!fromServer) {
       const localDb = readLocalDb();
       carwashesList = Object.values(localDb.carwashes);
     }
@@ -365,10 +371,12 @@ apiRouter.post("/sync", async (req: Request, res: Response) => {
       carwashes: carwashesList,
       conflicts,
       syncTime: new Date().toISOString(),
+      /** Clients must replace local IndexedDB with this list (deletes propagate). */
+      authoritative: fromServer,
     });
   } catch (err: any) {
     console.error("[Sync Exception]:", err);
-    return res.status(500).json({ error: err.message || "Sync failed", carwashes: [], conflicts: [] });
+    return res.status(500).json({ error: err.message || "Sync failed", carwashes: [], conflicts: [], authoritative: false });
   }
 });
 

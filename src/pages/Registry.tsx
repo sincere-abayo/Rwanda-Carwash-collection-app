@@ -3,15 +3,17 @@ import { db } from '../db/client';
 import { 
   ArrowLeft, Search, Droplets, MapPin, CheckCircle, Clock, 
   Edit2, Trash2, Plus, ExternalLink, Filter, LayoutGrid, Table, 
-  Phone, User, Check, X, ShieldCheck, Calendar
+  Phone, User, Check, X, ShieldCheck, Calendar, FileText, FileSpreadsheet, Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useAuthStore } from '../store/useAuthStore';
 import { RWANDA_HIERARCHY } from '../lib/location-data';
-import { performSync } from '../hooks/useSyncEngine';
+import { performSync, deleteCarwashOnServer } from '../hooks/useSyncEngine';
 import { generateId } from '../lib/utils';
+import { exportNationalExcelReport, exportNationalPdfReport } from '../lib/reports';
+import { useSyncStore } from '../store/useSyncStore';
 
 function registrationToIso(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -34,8 +36,10 @@ export function Registry() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDate, setBulkDate] = useState(todayLocalISO());
   const [isApplyingDate, setIsApplyingDate] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
   const user = useAuthStore(state => state.user);
   const isStaff = user?.role === 'staff' || (user?.role as string) === 'field_officer';
+  const isOnline = useSyncStore((s) => s.isOnline);
 
   const carwashes = useLiveQuery(
     () => db.carwashes
@@ -98,6 +102,38 @@ export function Registry() {
 
   const clearSelection = () => setSelectedIds(new Set());
 
+  const handleExport = async (type: 'pdf' | 'excel') => {
+    setExporting(type);
+    try {
+      const all = (await db.carwashes.toArray()) || [];
+      const regions = {
+        kigali: all.filter((c) => c.province === 'Kigali City').length,
+        northern: all.filter((c) => c.province === 'Northern Province').length,
+        southern: all.filter((c) => c.province === 'Southern Province').length,
+        eastern: all.filter((c) => c.province === 'Eastern Province').length,
+        western: all.filter((c) => c.province === 'Western Province').length,
+      };
+      const payload = {
+        stats: {
+          total: all.length,
+          verified: all.filter((c) => c.verification_status === 'verified').length,
+          unverified: all.filter((c) => c.verification_status !== 'verified').length,
+          active: all.filter((c) => c.status === 'active').length,
+          regions,
+        },
+        carwashes: all,
+        generatedBy: user?.name || user?.username || 'User',
+      };
+      if (type === 'pdf') await exportNationalPdfReport(payload);
+      else exportNationalExcelReport(payload);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate report.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const handleBulkSetDate = async () => {
     if (selectedIds.size === 0) return;
     if (!bulkDate) {
@@ -147,20 +183,22 @@ export function Registry() {
   };
 
   const handleDelete = async (id: string, name?: string) => {
-    if (window.confirm(`Are you sure you want to remove "${name || 'this carwash'}"?`)) {
-      await db.sync_queue.add({
-        id: crypto.randomUUID(),
-        type: 'delete_carwash',
-        payload: { id },
-        created_at: new Date().toISOString()
-      });
-      await db.carwashes.delete(id);
+    if (!isOnline) {
+      alert('Connect to the internet to delete. Deletes run on the server so every device stays in sync.');
+      return;
+    }
+    if (!window.confirm(`Remove "${name || 'this carwash'}" from the national registry? This applies for all users.`)) {
+      return;
+    }
+    try {
+      await deleteCarwashOnServer(id);
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
-      performSync().catch(err => console.warn('Background sync on delete:', err));
+    } catch (err: any) {
+      alert(err?.message || 'Delete failed');
     }
   };
 
@@ -233,6 +271,29 @@ export function Registry() {
                 <span className="hidden lg:inline">Grid</span>
               </button>
             </div>
+
+            <button
+              id="desktop-export-pdf-btn"
+              type="button"
+              onClick={() => handleExport('pdf')}
+              disabled={!!exporting}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 flex items-center gap-1.5 disabled:opacity-50"
+              title="Export PDF report"
+            >
+              {exporting === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              <span className="hidden lg:inline">PDF</span>
+            </button>
+            <button
+              id="desktop-export-excel-btn"
+              type="button"
+              onClick={() => handleExport('excel')}
+              disabled={!!exporting}
+              className="px-3 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 bg-emerald-50 text-sm font-semibold hover:bg-emerald-100 flex items-center gap-1.5 disabled:opacity-50"
+              title="Export Excel report"
+            >
+              {exporting === 'excel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+              <span className="hidden lg:inline">Excel</span>
+            </button>
 
             <button
               id="desktop-register-cw-btn"
@@ -502,9 +563,19 @@ export function Registry() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               id={`edit-btn-${cw.id}`}
-                              onClick={() => navigate(`/register?edit=${cw.id}`)}
-                              className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Edit Carwash"
+                              onClick={() => {
+                                if (!isOnline) {
+                                  alert('Connect to the internet to edit. Updates run on the server.');
+                                  return;
+                                }
+                                navigate(`/register?edit=${cw.id}`);
+                              }}
+                              className={`p-2 rounded-lg transition-colors ${
+                                isOnline
+                                  ? 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
+                                  : 'text-slate-300 cursor-not-allowed'
+                              }`}
+                              title={isOnline ? 'Edit Carwash' : 'Online only'}
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
@@ -512,8 +583,12 @@ export function Registry() {
                               <button
                                 id={`delete-btn-${cw.id}`}
                                 onClick={() => handleDelete(cw.id, cw.name)}
-                                className="p-2 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                title="Delete Carwash"
+                                className={`p-2 rounded-lg transition-colors ${
+                                  isOnline
+                                    ? 'text-slate-500 hover:text-red-600 hover:bg-red-50'
+                                    : 'text-slate-300 cursor-not-allowed'
+                                }`}
+                                title={isOnline ? 'Delete Carwash' : 'Online only — deletes sync to all devices'}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>

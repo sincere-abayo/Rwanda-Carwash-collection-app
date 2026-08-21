@@ -18,7 +18,8 @@ import { RWANDA_HIERARCHY } from '../lib/location-data';
 import { db, type LocalCarwash } from '../db/client';
 import { generateId } from '../lib/utils';
 import { useAuthStore } from '../store/useAuthStore';
-import { performSync } from '../hooks/useSyncEngine';
+import { performSync, updateCarwashOnServer } from '../hooks/useSyncEngine';
+import { useSyncStore } from '../store/useSyncStore';
 
 type EntryDraft = {
   key: string;
@@ -62,6 +63,7 @@ export function RegisterCarwash() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
   const user = useAuthStore((state) => state.user);
+  const isOnline = useSyncStore((s) => s.isOnline);
   const isEdit = Boolean(editId);
 
   const [shared, setShared] = useState({
@@ -171,6 +173,11 @@ export function RegisterCarwash() {
     setIsSubmitting(true);
     setSaveMessage(null);
     try {
+      if (isEdit && !isOnline) {
+        alert('Connect to the internet to edit. Updates run on the server so every device stays in sync.');
+        return;
+      }
+
       const now = new Date().toISOString();
       const createdAtFromDate = registrationToCreatedAt(shared.registration_date);
       const records: LocalCarwash[] = toSave.map((entry, index) => {
@@ -185,7 +192,6 @@ export function RegisterCarwash() {
           contact_name: entry.contact_name.trim(),
           phone: entry.phone.trim(),
           notes: entry.notes.trim(),
-          // GPS hidden for now — keep undefined
           lat: undefined,
           lng: undefined,
           status: entry.status,
@@ -198,32 +204,41 @@ export function RegisterCarwash() {
         };
       });
 
-      await db.transaction('rw', db.carwashes, db.sync_queue, async () => {
-        for (const record of records) {
-          await db.carwashes.put(record);
-          await db.sync_queue.add({
-            id: generateId(),
-            type: 'upsert_carwash',
-            payload: {
-              ...record,
-              registration_date: new Date(record.registration_date || record.created_at).getTime(),
-              isNew: !(isEdit && originalRecord),
-            },
-            created_at: now,
-          });
-        }
-      });
-
-      performSync().catch((err) => console.warn('Background sync on save:', err));
+      // Edits: server only. Creates: local queue (works offline), then sync when online.
+      if (isEdit && originalRecord) {
+        const record = records[0];
+        await updateCarwashOnServer({
+          ...record,
+          registration_date: new Date(record.registration_date || record.created_at).getTime(),
+          isNew: false,
+        });
+      } else {
+        await db.transaction('rw', db.carwashes, db.sync_queue, async () => {
+          for (const record of records) {
+            await db.carwashes.put(record);
+            await db.sync_queue.add({
+              id: generateId(),
+              type: 'upsert_carwash',
+              payload: {
+                ...record,
+                registration_date: new Date(record.registration_date || record.created_at).getTime(),
+                isNew: true,
+              },
+              created_at: now,
+            });
+          }
+        });
+        performSync().catch((err) => console.warn('Background sync on save:', err));
+      }
 
       if (!isEdit && records.length > 1) {
         setSaveMessage(`Saved ${records.length} carwashes in ${shared.district}.`);
       }
 
       navigate('/registry', { replace: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save record', error);
-      alert('An error occurred while saving.');
+      alert(error?.message || 'An error occurred while saving.');
     } finally {
       setIsSubmitting(false);
     }

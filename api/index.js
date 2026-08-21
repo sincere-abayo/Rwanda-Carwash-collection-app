@@ -938,7 +938,7 @@ apiRouter.delete("/carwashes/:id", async (req, res) => {
 apiRouter.post("/sync", async (req, res) => {
   try {
     await ensureTablesInit();
-    const { mutations, lastSync } = req.body || {};
+    const { mutations } = req.body || {};
     const conflicts = [];
     if (mutations && Array.isArray(mutations)) {
       for (const mutation of mutations) {
@@ -957,25 +957,28 @@ apiRouter.post("/sync", async (req, res) => {
     }
     const supabase = getSupabaseClient();
     let carwashesList = [];
+    let fromServer = false;
     if (supabase) {
       try {
         const { data, error } = await supabase.from("carwashes").select("*");
-        if (data && !error && data.length > 0) {
-          carwashesList = data.map((r) => ({
+        if (!error) {
+          fromServer = true;
+          carwashesList = (data || []).map((r) => ({
             id: r.id.toString(),
             name: r.name,
             province: r.province,
             district: r.district,
-            sector: r.sector,
+            sector: r.sector || "",
             address: r.physical_address,
             contact_name: r.primary_contact,
             phone: r.phone_number,
             status: r.status,
             verification_status: "verified",
             sync_status: "SYNCED",
+            registration_date: new Date(Number(r.registration_date)).toISOString(),
             created_at: new Date(Number(r.registration_date)).toISOString(),
             updated_at: new Date(Number(r.registration_date)).toISOString(),
-            created_by: r.field_officer_id.toString(),
+            created_by: r.field_officer_id?.toString?.() || "1",
             version: r.version
           }));
         }
@@ -983,18 +986,20 @@ apiRouter.post("/sync", async (req, res) => {
         console.warn("[Supabase Sync Read Error]:", err);
       }
     }
-    if (carwashesList.length === 0) {
+    if (!fromServer) {
       const localDb = readLocalDb();
       carwashesList = Object.values(localDb.carwashes);
     }
     return res.json({
       carwashes: carwashesList,
       conflicts,
-      syncTime: (/* @__PURE__ */ new Date()).toISOString()
+      syncTime: (/* @__PURE__ */ new Date()).toISOString(),
+      /** Clients must replace local IndexedDB with this list (deletes propagate). */
+      authoritative: fromServer
     });
   } catch (err) {
     console.error("[Sync Exception]:", err);
-    return res.status(500).json({ error: err.message || "Sync failed", carwashes: [], conflicts: [] });
+    return res.status(500).json({ error: err.message || "Sync failed", carwashes: [], conflicts: [], authoritative: false });
   }
 });
 apiRouter.get("/admin/stats", async (req, res) => {

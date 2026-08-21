@@ -1,9 +1,29 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { LogOut, Map, Activity, ShieldCheck, Download, AlertTriangle, Plus, MapPin, RefreshCw, History } from 'lucide-react';
+import {
+  LogOut,
+  Map,
+  Activity,
+  ShieldCheck,
+  Download,
+  AlertTriangle,
+  Plus,
+  MapPin,
+  RefreshCw,
+  History,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { GeographicDistributionChart } from '../components/GeographicDistributionChart';
+import {
+  buildRegionStats,
+  exportNationalExcelReport,
+  exportNationalPdfReport,
+  fetchReportCarwashes,
+} from '../lib/reports';
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
@@ -11,6 +31,7 @@ export function AdminDashboard() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'audit'>('overview');
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
   const navigate = useNavigate();
@@ -41,6 +62,30 @@ export function AdminDashboard() {
     logout();
     navigate('/');
   };
+
+  const handleExport = async (type: 'pdf' | 'excel') => {
+    setExporting(type);
+    try {
+      const carwashes = await fetchReportCarwashes();
+      const payload = {
+        stats: stats || {},
+        carwashes,
+        generatedBy: user?.name || user?.username || 'Admin',
+      };
+      if (type === 'pdf') {
+        await exportNationalPdfReport(payload);
+      } else {
+        exportNationalExcelReport(payload);
+      }
+    } catch (err) {
+      console.error('Report export failed:', err);
+      alert('Failed to generate report. Please try again.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const regionStats = buildRegionStats(stats);
 
   return (
     <div 
@@ -84,6 +129,28 @@ export function AdminDashboard() {
                 <span className="text-xs font-semibold text-emerald-100 uppercase tracking-widest">
                   {dbStatus?.isConnected ? 'Cloud Connected' : 'Sync Active'}
                 </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExport('pdf')}
+                  disabled={!!exporting || loading}
+                  className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 disabled:opacity-50"
+                  title="Download PDF report"
+                >
+                  {exporting === 'pdf' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                  PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExport('excel')}
+                  disabled={!!exporting || loading}
+                  className="px-3.5 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 font-bold rounded-xl text-xs flex items-center gap-1.5 disabled:opacity-50"
+                  title="Download Excel report"
+                >
+                  {exporting === 'excel' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+                  Excel
+                </button>
               </div>
               <button onClick={() => navigate('/registry')} className="flex-1 xl:flex-none px-5 py-2.5 bg-white text-[#0B3B8F] font-bold rounded-xl shadow-xl hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
                 <MapPin className="w-4 h-4" /> <span className="hidden sm:inline">Registry View</span><span className="sm:hidden">Registry</span>
@@ -172,21 +239,25 @@ export function AdminDashboard() {
                       <p className="text-xs text-blue-200 opacity-75">Regional density across Rwanda provinces</p>
                     </div>
                   </div>
-                  <span className="text-xs font-semibold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-500/30">
-                    5 Administrative Regions
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-500/30">
+                      5 Administrative Regions
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('pdf')}
+                      disabled={!!exporting}
+                      className="text-xs font-bold text-white/90 bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 py-1 rounded-lg flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <Download className="w-3 h-3" /> Report
+                    </button>
+                  </div>
                 </div>
 
                 <GeographicDistributionChart
                   variant="dark"
                   total={stats?.total || 0}
-                  regions={[
-                    { label: 'Kigali City', value: stats?.regions?.kigali || 0 },
-                    { label: 'Northern Province', value: stats?.regions?.northern || 0 },
-                    { label: 'Southern Province', value: stats?.regions?.southern || 0 },
-                    { label: 'Eastern Province', value: stats?.regions?.eastern || 0 },
-                    { label: 'Western Province', value: stats?.regions?.western || 0 },
-                  ]}
+                  regions={regionStats}
                 />
               </section>
 

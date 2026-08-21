@@ -5,7 +5,7 @@ import { app, ensureTablesInit } from "./server/app";
 import { syncAllLocalToSupabase } from "./server/supabase";
 
 async function startServer() {
-  const PORT = 3001;
+  const PORT = 3002;
 
   // Initialize DB tables and sync all data on startup
   try {
