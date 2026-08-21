@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/client';
 import { useAuthStore } from '../store/useAuthStore';
 import { SyncStatusIndicator } from '../components/SyncStatusIndicator';
+import { GeographicDistributionChart } from '../components/GeographicDistributionChart';
 import { Plus, Droplets, MapPin, CheckCircle, Clock, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -94,34 +95,17 @@ export function FieldDashboard() {
             </span>
           </div>
 
-          <div className="space-y-3.5">
-            {[
-              { label: "Kigali City", value: stats?.regions?.kigali || 0 },
-              { label: "Northern Province", value: stats?.regions?.northern || 0 },
-              { label: "Southern Province", value: stats?.regions?.southern || 0 },
-              { label: "Eastern Province", value: stats?.regions?.eastern || 0 },
-              { label: "Western Province", value: stats?.regions?.western || 0 },
-            ].map((region) => {
-              const percentage = stats.total > 0 ? Math.round((region.value / stats.total) * 100) : 0;
-              return (
-                <div key={region.label} className="group">
-                  <div className="flex justify-between items-center text-xs mb-1.5">
-                    <span className="text-slate-700 font-medium">{region.label}</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-900">{region.value}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">({percentage}%)</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-brand-primary h-2 rounded-full transition-all duration-700 ease-out group-hover:bg-blue-700"
-                      style={{ width: `${Math.max(percentage, region.value > 0 ? 5 : 0)}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <GeographicDistributionChart
+            variant="light"
+            total={stats?.total || 0}
+            regions={[
+              { label: 'Kigali City', value: stats?.regions?.kigali || 0 },
+              { label: 'Northern Province', value: stats?.regions?.northern || 0 },
+              { label: 'Southern Province', value: stats?.regions?.southern || 0 },
+              { label: 'Eastern Province', value: stats?.regions?.eastern || 0 },
+              { label: 'Western Province', value: stats?.regions?.western || 0 },
+            ]}
+          />
         </section>
 
         <div className="flex justify-between items-end mb-4">

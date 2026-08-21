@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { LogOut, Map, Activity, ShieldCheck, Download, AlertTriangle, Plus, MapPin, RefreshCw, History } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { GeographicDistributionChart } from '../components/GeographicDistributionChart';
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
@@ -176,34 +177,17 @@ export function AdminDashboard() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-                  {[
-                    { label: "Kigali City", value: stats?.regions?.kigali || 0 },
-                    { label: "Northern Province", value: stats?.regions?.northern || 0 },
-                    { label: "Southern Province", value: stats?.regions?.southern || 0 },
-                    { label: "Eastern Province", value: stats?.regions?.eastern || 0 },
-                    { label: "Western Province", value: stats?.regions?.western || 0 },
-                  ].map((region) => {
-                    const percentage = stats?.total && stats.total > 0 ? Math.round((region.value / stats.total) * 100) : 0;
-                    return (
-                      <div key={region.label} className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col justify-between hover:bg-white/10 transition-all group">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-semibold text-blue-100/90">{region.label}</span>
-                          <span className="text-[10px] font-bold text-emerald-300">{percentage}%</span>
-                        </div>
-                        <div className="text-2xl font-bold text-white mb-2 tracking-tight group-hover:text-emerald-300 transition-colors">
-                          {region.value} <span className="text-xs font-normal text-blue-200/60 ml-0.5">facilities</span>
-                        </div>
-                        <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
-                          <div 
-                            className="bg-emerald-400 h-2 rounded-full transition-all duration-700 ease-out group-hover:bg-emerald-300"
-                            style={{ width: `${Math.max(percentage, region.value > 0 ? 6 : 0)}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <GeographicDistributionChart
+                  variant="dark"
+                  total={stats?.total || 0}
+                  regions={[
+                    { label: 'Kigali City', value: stats?.regions?.kigali || 0 },
+                    { label: 'Northern Province', value: stats?.regions?.northern || 0 },
+                    { label: 'Southern Province', value: stats?.regions?.southern || 0 },
+                    { label: 'Eastern Province', value: stats?.regions?.eastern || 0 },
+                    { label: 'Western Province', value: stats?.regions?.western || 0 },
+                  ]}
+                />
               </section>
 
               {/* Recent Field Syncs Table */}

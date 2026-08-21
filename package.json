@@ -33,6 +33,7 @@
     "react-dom": "^19.0.1",
     "react-hook-form": "^7.85.0",
     "react-router-dom": "^7.18.2",
+    "recharts": "^3.10.1",
     "tailwind-merge": "^3.6.0",
     "uuid": "^14.0.2",
     "vite": "^6.2.3",
