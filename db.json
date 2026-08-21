@@ -14,7 +14,7 @@
       "verification_status": "verified",
       "registration_date": 1787133600000,
       "created_at": "2026-08-21T10:00:00.000Z",
-      "updated_at": "2026-08-21T10:12:32.714Z",
+      "updated_at": "2026-08-21T10:13:04.378Z",
       "created_by": "1",
       "sync_status": "SYNCED",
       "isNew": false
@@ -33,7 +33,7 @@
       "verification_status": "verified",
       "registration_date": 1787133600000,
       "created_at": "2026-08-21T10:00:00.000Z",
-      "updated_at": "2026-08-21T10:12:31.486Z",
+      "updated_at": "2026-08-21T10:13:06.143Z",
       "created_by": "1",
       "sync_status": "SYNCED",
       "isNew": false
@@ -52,7 +52,7 @@
       "verification_status": "verified",
       "registration_date": 1787133600000,
       "created_at": "2026-08-21T10:00:00.000Z",
-      "updated_at": "2026-08-21T10:12:32.435Z",
+      "updated_at": "2026-08-21T10:13:16.853Z",
       "created_by": "1",
       "sync_status": "SYNCED",
       "isNew": false
@@ -69,6 +69,510 @@
     }
   },
   "audit_logs": [
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307187112,
+      "id": 1787307197350
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307186144,
+      "id": 1787307196352
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307185371,
+      "id": 1787307195851
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307184873,
+      "id": 1787307195352
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307184379,
+      "id": 1787307194854
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307182651,
+      "id": 1787307192856
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307175657,
+      "id": 1787307185865
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307184374,
+      "id": 1787307184678
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307171906,
+      "id": 1787307182374
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307180878,
+      "id": 1787307181171
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307168408,
+      "id": 1787307178877
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307164915,
+      "id": 1787307175384
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307165183,
+      "id": 1787307175381
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307172681,
+      "id": 1787307172952
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307172171,
+      "id": 1787307172447
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307161961,
+      "id": 1787307172387
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307161414,
+      "id": 1787307171898
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307161410,
+      "id": 1787307171892
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307161417,
+      "id": 1787307171888
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307171608,
+      "id": 1787307171879
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307170985,
+      "id": 1787307171329
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307170407,
+      "id": 1787307170709
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307169791,
+      "id": 1787307170066
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307159574,
+      "id": 1787307169892
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307169219,
+      "id": 1787307169509
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307168669,
+      "id": 1787307168945
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307157924,
+      "id": 1787307168399
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307157929,
+      "id": 1787307168394
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307168020,
+      "id": 1787307168291
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307167467,
+      "id": 1787307167743
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307166914,
+      "id": 1787307167191
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307166465,
+      "id": 1787307166734
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307165919,
+      "id": 1787307166189
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307165189,
+      "id": 1787307165509
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307154431,
+      "id": 1787307164906
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307154427,
+      "id": 1787307164899
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307163404,
+      "id": 1787307163676
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307163180,
+      "id": 1787307163448
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307152436,
+      "id": 1787307162902
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307151487,
+      "id": 1787307161902
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307161407,
+      "id": 1787307161681
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307161176,
+      "id": 1787307161467
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307160784,
+      "id": 1787307161057
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307150699,
+      "id": 1787307160905
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307160232,
+      "id": 1787307160509
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307159680,
+      "id": 1787307159958
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307149335,
+      "id": 1787307159412
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307149330,
+      "id": 1787307159408
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307159025,
+      "id": 1787307159300
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307158476,
+      "id": 1787307158749
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307157919,
+      "id": 1787307158196
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307157915,
+      "id": 1787307158190
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307157311,
+      "id": 1787307157631
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307156766,
+      "id": 1787307157034
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307156192,
+      "id": 1787307156491
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307155641,
+      "id": 1787307155922
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307145730,
+      "id": 1787307155914
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307155060,
+      "id": 1787307155365
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307154424,
+      "id": 1787307154700
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307154420,
+      "id": 1787307154693
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 865676161,
+      "timestamp": 1787307153813,
+      "id": 1787307154141
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 549813690,
+      "timestamp": 1787307153265,
+      "id": 1787307153532
+    },
+    {
+      "user_id": 1,
+      "action": "UPDATE",
+      "table_name": "carwashes",
+      "record_id": 533120214,
+      "timestamp": 1787307152715,
+      "id": 1787307152990
+    },
     {
       "user_id": 1,
       "action": "UPDATE",
