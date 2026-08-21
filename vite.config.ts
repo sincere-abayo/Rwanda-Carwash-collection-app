@@ -98,7 +98,17 @@ export default defineConfig(() => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: process.env.DISABLE_HMR === 'true'
+        ? null
+        : {
+            // Server writes db.json on every sync — ignore so Vite doesn't full-reload the UI
+            ignored: [
+              '**/db.json',
+              '**/api/index.js',
+              '**/api/index.js.map',
+              '**/dist/**',
+            ],
+          },
     },
   };
 });
