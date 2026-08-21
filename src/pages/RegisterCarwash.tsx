@@ -14,7 +14,7 @@ import {
   Layers,
   Copy,
 } from 'lucide-react';
-import { RWANDA_HIERARCHY } from '../lib/location-data';
+import { getProvinces, getDistricts, getSectors, getCells } from '../lib/location-data';
 import { db, type LocalCarwash } from '../db/client';
 import { generateId } from '../lib/utils';
 import { useAuthStore } from '../store/useAuthStore';
@@ -71,6 +71,7 @@ export function RegisterCarwash() {
     province: '',
     district: '',
     sector: '',
+    cell: '',
   });
 
   const [entries, setEntries] = useState<EntryDraft[]>([emptyEntry()]);
@@ -94,6 +95,7 @@ export function RegisterCarwash() {
         province: record.province || '',
         district: record.district || '',
         sector: record.sector || '',
+        cell: record.cell || '',
       });
       setEntries([
         {
@@ -109,16 +111,10 @@ export function RegisterCarwash() {
     });
   }, [editId]);
 
-  const provinces = Object.keys(RWANDA_HIERARCHY);
-  const districts = shared.province
-    ? Object.keys(RWANDA_HIERARCHY[shared.province as keyof typeof RWANDA_HIERARCHY] || {})
-    : [];
-  const sectors =
-    shared.province && shared.district
-      ? (RWANDA_HIERARCHY[shared.province as keyof typeof RWANDA_HIERARCHY] as Record<string, string[]>)?.[
-          shared.district
-        ] || []
-      : [];
+  const provinces = getProvinces();
+  const districts = getDistricts(shared.province);
+  const sectors = getSectors(shared.province, shared.district);
+  const cells = getCells(shared.province, shared.district, shared.sector || undefined);
 
   const locationReady = Boolean(shared.province && shared.district && shared.registration_date);
   const filledEntries = entries.filter((e) => e.name.trim() || e.address.trim() || e.contact_name.trim() || e.phone.trim());
@@ -184,10 +180,11 @@ export function RegisterCarwash() {
         const targetId = isEdit && originalRecord ? originalRecord.id : generateId();
         return {
           id: targetId,
-          name: entry.name.trim() || `Unnamed Carwash ${index + 1}`,
+          name: entry.name.trim(),
           province: shared.province,
           district: shared.district,
           sector: shared.sector || '',
+          cell: shared.cell.trim() || '',
           address: entry.address.trim(),
           contact_name: entry.contact_name.trim(),
           phone: entry.phone.trim(),
@@ -244,7 +241,9 @@ export function RegisterCarwash() {
     }
   };
 
-  const locationLabel = [shared.sector, shared.district, shared.province].filter(Boolean).join(' · ');
+  const locationLabel = [shared.cell, shared.sector, shared.district, shared.province]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
@@ -353,7 +352,7 @@ export function RegisterCarwash() {
                   required
                   value={shared.province}
                   onChange={(e) =>
-                    setShared({ ...shared, province: e.target.value, district: '', sector: '' })
+                    setShared({ ...shared, province: e.target.value, district: '', sector: '', cell: '' })
                   }
                   className="w-full px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-xs sm:text-sm font-medium text-slate-800"
                 >
@@ -375,7 +374,7 @@ export function RegisterCarwash() {
                   required
                   disabled={!shared.province}
                   value={shared.district}
-                  onChange={(e) => setShared({ ...shared, district: e.target.value, sector: '' })}
+                  onChange={(e) => setShared({ ...shared, district: e.target.value, sector: '', cell: '' })}
                   className="w-full px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-xs sm:text-sm font-medium text-slate-800 disabled:opacity-50"
                 >
                   <option value="">Select</option>
@@ -395,7 +394,15 @@ export function RegisterCarwash() {
                   id="select-cw-sector"
                   disabled={!shared.district}
                   value={shared.sector}
-                  onChange={(e) => setShared({ ...shared, sector: e.target.value })}
+                  onChange={(e) => {
+                    const sector = e.target.value;
+                    const nextCells = getCells(shared.province, shared.district, sector || undefined);
+                    setShared({
+                      ...shared,
+                      sector,
+                      cell: shared.cell && nextCells.includes(shared.cell) ? shared.cell : '',
+                    });
+                  }}
                   className="w-full px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-xs sm:text-sm font-medium text-slate-800 disabled:opacity-50"
                 >
                   <option value="">Any</option>
@@ -405,6 +412,40 @@ export function RegisterCarwash() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Cell <span className="text-slate-400 font-normal normal-case">(Akagari)</span>
+                </label>
+                <select
+                  id="select-cw-cell"
+                  disabled={!shared.district}
+                  value={shared.cell}
+                  onChange={(e) => setShared({ ...shared, cell: e.target.value })}
+                  className="w-full px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-xs sm:text-sm font-medium text-slate-800 disabled:opacity-50"
+                >
+                  <option value="">
+                    {!shared.district
+                      ? 'Select district first'
+                      : shared.sector
+                        ? 'Select cell'
+                        : 'Select cell (all in district)'}
+                  </option>
+                  {cells.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                  {shared.cell && !cells.includes(shared.cell) && (
+                    <option value={shared.cell}>{shared.cell} (saved)</option>
+                  )}
+                </select>
+                {!shared.sector && shared.district && cells.length > 0 && (
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Pick a sector to narrow cells, or choose from all {cells.length} cells in {shared.district}.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -482,27 +523,6 @@ export function RegisterCarwash() {
                     <div className="p-3 sm:p-5 grid grid-cols-2 gap-3 sm:gap-3.5">
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                          Carwash Name
-                        </label>
-                        <input
-                          ref={isLast ? lastNameInputRef : undefined}
-                          id={`input-cw-name-${index}`}
-                          type="text"
-                          value={entry.name}
-                          onChange={(e) => updateEntry(entry.key, { name: e.target.value })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !isEdit && isLast && entry.name.trim()) {
-                              e.preventDefault();
-                              addEntry();
-                            }
-                          }}
-                          placeholder="e.g. Clean Ride Kigali"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                           Physical Street Address / Landmark
                         </label>
                         <input
@@ -511,6 +531,27 @@ export function RegisterCarwash() {
                           value={entry.address}
                           onChange={(e) => updateEntry(entry.key, { address: e.target.value })}
                           placeholder="e.g. KG 15 Ave, opposite Bank of Kigali"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                          Facility name <span className="text-slate-400 font-normal normal-case">(opt.)</span>
+                        </label>
+                        <input
+                          ref={isLast ? lastNameInputRef : undefined}
+                          id={`input-cw-name-${index}`}
+                          type="text"
+                          value={entry.name}
+                          onChange={(e) => updateEntry(entry.key, { name: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isEdit && isLast && (entry.name.trim() || entry.address.trim())) {
+                              e.preventDefault();
+                              addEntry();
+                            }
+                          }}
+                          placeholder="e.g. Clean Ride Kigali (optional)"
                           className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
                         />
                       </div>

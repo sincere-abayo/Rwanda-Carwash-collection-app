@@ -6,6 +6,8 @@ export interface LocalCarwash {
   province: string;
   district: string;
   sector: string;
+  /** Rwanda administrative cell (Akagari) — often shared by nearby carwashes */
+  cell?: string;
   lat?: number;
   lng?: number;
   address?: string;

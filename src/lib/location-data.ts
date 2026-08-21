@@ -1,21 +1,43 @@
-export const RWANDA_HIERARCHY = {
-  "Kigali City": {
-    "Gasabo": ["Bumbogo", "Gatsata", "Gikomero", "Gisozi", "Jabana", "Jali", "Kacyiru", "Kinyinya", "Ndera", "Nduba", "Remera", "Rusororo", "Rutunga", "Kimiromko"],
-    "Kicukiro": ["Gahanga", "Gatenga", "Gikondo", "Kagarama", "Kanombe", "Kicukiro", "Kigarama", "Masaka", "Niboye", "Nyarugunga"],
-    "Nyarugenge": ["Gitega", "Kanyinya", "Kigali", "Kimisagara", "Mageragere", "Muhima", "Nyakabanda", "Nyamirambo", "Nyarugenge", "Rwezamenyo"]
-  },
-  "Northern Province": {
-    "Musanze": ["Busogo", "Cyuve", "Gacaca", "Gashaki", "Gataraga", "Kimonyi", "Kinigi", "Muhoza", "Muko", "Musanze", "Nkotsi", "Nyange", "Remera", "Rwaza", "Shingiro"],
-    "Gicumbi": ["Bukure", "Bwisige", "Byumba", "Cyumba", "Giti", "Kageyo", "Kaniga", "Manyagiro", "Miyove", "Muko", "Mutete", "Nyamiyaga", "Nyankenke", "Rubaya", "Rukomo", "Rushaki", "Rutare", "Ruvune", "Rwamiko", "Shangasha"]
-  },
-  // Add other provinces as needed for prototype
-  "Western Province": {
-    "Rubavu": ["Bugeshi", "Busasamana", "Cyanzarwe", "Gisenyi", "Kanama", "Kanzenze", "Mudende", "Nyakiliba", "Nyamyumba", "Nyundo", "Rubavu", "Rugerero"]
-  },
-  "Eastern Province": {
-    "Bugesera": ["Gashora", "Juru", "Kamabuye", "Ntarama", "Mareba", "Mayange", "Musenyi", "Mwogo", "Ngeruka", "Nyamata", "Nyarugenge", "Rilima", "Ruhuha", "Rweru", "Shyara"]
-  },
-  "Southern Province": {
-    "Huye": ["Gishamvu", "Huye", "Karama", "Kigoma", "Kinazi", "Maraba", "Mbazi", "Mukura", "Ngoma", "Ruhashya", "Rusatira", "Rwuri", "Simbi", "Tumba"]
+/**
+ * Rwanda administrative hierarchy: Province → District → Sector → Cell.
+ * Data generated from official NISR village list via rwanda-geo-data
+ * (5 provinces, 30 districts, 416 sectors, 2,148 cells).
+ */
+import hierarchyJson from './rwanda-hierarchy.json';
+
+export type RwandaHierarchy = Record<string, Record<string, Record<string, string[]>>>;
+
+export const RWANDA_HIERARCHY = hierarchyJson as RwandaHierarchy;
+
+export function getProvinces(): string[] {
+  return Object.keys(RWANDA_HIERARCHY).sort((a, b) => a.localeCompare(b));
+}
+
+export function getDistricts(province: string): string[] {
+  if (!province) return [];
+  return Object.keys(RWANDA_HIERARCHY[province] || {}).sort((a, b) => a.localeCompare(b));
+}
+
+export function getSectors(province: string, district: string): string[] {
+  if (!province || !district) return [];
+  return Object.keys(RWANDA_HIERARCHY[province]?.[district] || {}).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
+/** Cells for a sector; if sector is empty, all cells in the district. */
+export function getCells(province: string, district: string, sector?: string): string[] {
+  if (!province || !district) return [];
+  const sectorMap = RWANDA_HIERARCHY[province]?.[district];
+  if (!sectorMap) return [];
+
+  if (sector && sectorMap[sector]) {
+    return [...sectorMap[sector]].sort((a, b) => a.localeCompare(b));
   }
-};
+
+  const all = new Set<string>();
+  for (const cells of Object.values(sectorMap)) {
+    for (const cell of cells) all.add(cell);
+  }
+  return [...all].sort((a, b) => a.localeCompare(b));
+}

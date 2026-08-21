@@ -71,6 +71,30 @@
   "audit_logs": [
     {
       "user_id": 1,
+      "action": "MIGRATE_IMPORT",
+      "table_name": "carwashes",
+      "record_id": null,
+      "timestamp": 1787323152590,
+      "id": 1787323158303
+    },
+    {
+      "user_id": 1,
+      "action": "SEED",
+      "table_name": "users",
+      "record_id": 1,
+      "timestamp": 1787322542420,
+      "id": 1787322542759
+    },
+    {
+      "user_id": 1,
+      "action": "MIGRATE_IMPORT",
+      "table_name": "carwashes",
+      "record_id": null,
+      "timestamp": 1787320702260,
+      "id": 1787320708077
+    },
+    {
+      "user_id": 1,
       "action": "LOGIN",
       "table_name": "users",
       "record_id": 1,
@@ -4044,30 +4068,6 @@
       "record_id": 865676161,
       "timestamp": 1787305517621,
       "id": 1787305517906
-    },
-    {
-      "user_id": 1,
-      "action": "INSERT",
-      "table_name": "carwashes",
-      "record_id": 549813690,
-      "timestamp": 1787305515510,
-      "id": 1787305515797
-    },
-    {
-      "user_id": 1,
-      "action": "INSERT",
-      "table_name": "carwashes",
-      "record_id": 865676161,
-      "timestamp": 1787305514620,
-      "id": 1787305515203
-    },
-    {
-      "user_id": 1,
-      "action": "INSERT",
-      "table_name": "carwashes",
-      "record_id": 549813690,
-      "timestamp": 1787305514618,
-      "id": 1787305514907
     }
   ]
 }

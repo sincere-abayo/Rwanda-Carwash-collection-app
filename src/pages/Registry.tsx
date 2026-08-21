@@ -9,9 +9,9 @@ import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useAuthStore } from '../store/useAuthStore';
-import { RWANDA_HIERARCHY } from '../lib/location-data';
+import { getProvinces, getDistricts, getSectors, getCells } from '../lib/location-data';
 import { performSync, deleteCarwashOnServer } from '../hooks/useSyncEngine';
-import { generateId } from '../lib/utils';
+import { generateId, formatCarwashDisplay } from '../lib/utils';
 import { exportNationalExcelReport, exportNationalPdfReport } from '../lib/reports';
 import { useSyncStore } from '../store/useSyncStore';
 
@@ -31,6 +31,8 @@ export function Registry() {
   const [search, setSearch] = useState('');
   const [provinceFilter, setProvinceFilter] = useState('');
   const [districtFilter, setDistrictFilter] = useState('');
+  const [sectorFilter, setSectorFilter] = useState('');
+  const [cellFilter, setCellFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending'>('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -48,18 +50,21 @@ export function Registry() {
       .filter(cw => {
         if (provinceFilter && cw.province !== provinceFilter) return false;
         if (districtFilter && cw.district !== districtFilter) return false;
+        if (sectorFilter && (cw.sector || '') !== sectorFilter) return false;
+        if (cellFilter && (cw.cell || '') !== cellFilter) return false;
         if (statusFilter !== 'all' && cw.verification_status !== statusFilter) return false;
         if (!search) return true;
         const q = search.toLowerCase();
         return (cw.name || '').toLowerCase().includes(q) || 
-               cw.sector.toLowerCase().includes(q) || 
+               (cw.sector || '').toLowerCase().includes(q) ||
+               (cw.cell || '').toLowerCase().includes(q) ||
                cw.district.toLowerCase().includes(q) ||
                (cw.contact_name || '').toLowerCase().includes(q) ||
                (cw.phone || '').toLowerCase().includes(q) ||
                (cw.address || '').toLowerCase().includes(q);
       })
       .toArray(),
-    [search, provinceFilter, districtFilter, statusFilter]
+    [search, provinceFilter, districtFilter, sectorFilter, cellFilter, statusFilter]
   );
 
   const visibleIds = useMemo(() => (carwashes || []).map((c) => c.id), [carwashes]);
@@ -125,7 +130,7 @@ export function Registry() {
         generatedBy: user?.name || user?.username || 'User',
       };
       if (type === 'pdf') await exportNationalPdfReport(payload);
-      else exportNationalExcelReport(payload);
+      else await exportNationalExcelReport(payload);
     } catch (err) {
       console.error(err);
       alert('Failed to generate report.');
@@ -353,7 +358,7 @@ export function Registry() {
             <input
               id="registry-search-input"
               type="text"
-              placeholder="Search by name, district, sector, contact, or address..."
+              placeholder="Search by facility, landmark, cell, district, sector, or contact..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder-slate-400"
@@ -369,18 +374,20 @@ export function Registry() {
           </div>
 
           {/* Location cascading filters */}
-          <div className="flex flex-wrap sm:flex-nowrap gap-2">
+          <div className="flex flex-wrap gap-2">
             <select
               id="registry-filter-province"
               value={provinceFilter}
               onChange={(e) => {
                 setProvinceFilter(e.target.value);
                 setDistrictFilter('');
+                setSectorFilter('');
+                setCellFilter('');
               }}
-              className="flex-1 sm:w-44 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="flex-1 min-w-[8.5rem] sm:w-40 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               <option value="">All Provinces</option>
-              {Object.keys(RWANDA_HIERARCHY).map(prov => (
+              {getProvinces().map((prov) => (
                 <option key={prov} value={prov}>{prov.replace(' Province', '')}</option>
               ))}
             </select>
@@ -388,13 +395,46 @@ export function Registry() {
             <select
               id="registry-filter-district"
               value={districtFilter}
-              onChange={(e) => setDistrictFilter(e.target.value)}
+              onChange={(e) => {
+                setDistrictFilter(e.target.value);
+                setSectorFilter('');
+                setCellFilter('');
+              }}
               disabled={!provinceFilter}
-              className="flex-1 sm:w-44 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 min-w-[8.5rem] sm:w-40 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">All Districts</option>
-              {provinceFilter && Object.keys(RWANDA_HIERARCHY[provinceFilter as keyof typeof RWANDA_HIERARCHY] || {}).map(dist => (
+              {getDistricts(provinceFilter).map((dist) => (
                 <option key={dist} value={dist}>{dist}</option>
+              ))}
+            </select>
+
+            <select
+              id="registry-filter-sector"
+              value={sectorFilter}
+              onChange={(e) => {
+                setSectorFilter(e.target.value);
+                setCellFilter('');
+              }}
+              disabled={!districtFilter}
+              className="flex-1 min-w-[8.5rem] sm:w-40 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">All Sectors</option>
+              {getSectors(provinceFilter, districtFilter).map((sec) => (
+                <option key={sec} value={sec}>{sec}</option>
+              ))}
+            </select>
+
+            <select
+              id="registry-filter-cell"
+              value={cellFilter}
+              onChange={(e) => setCellFilter(e.target.value)}
+              disabled={!districtFilter}
+              className="flex-1 min-w-[8.5rem] sm:w-40 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">All Cells</option>
+              {getCells(provinceFilter, districtFilter, sectorFilter || undefined).map((cell) => (
+                <option key={cell} value={cell}>{cell}</option>
               ))}
             </select>
 
@@ -402,7 +442,7 @@ export function Registry() {
               id="registry-filter-status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full sm:w-36 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="flex-1 min-w-[8.5rem] sm:w-36 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               <option value="all">All Status</option>
               <option value="verified">Verified</option>
@@ -429,11 +469,13 @@ export function Registry() {
                 {allVisibleSelected ? 'Deselect all' : 'Select all'}
               </button>
             )}
-            {(provinceFilter || districtFilter || statusFilter !== 'all' || search) && (
+            {(provinceFilter || districtFilter || sectorFilter || cellFilter || statusFilter !== 'all' || search) && (
               <button
                 onClick={() => {
                   setProvinceFilter('');
                   setDistrictFilter('');
+                  setSectorFilter('');
+                  setCellFilter('');
                   setStatusFilter('all');
                   setSearch('');
                 }}
@@ -488,7 +530,7 @@ export function Registry() {
                             checked={selectedIds.has(cw.id)}
                             onChange={() => toggleSelect(cw.id)}
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            aria-label={`Select ${cw.name || cw.id}`}
+                            aria-label={`Select ${formatCarwashDisplay(cw)}`}
                           />
                         </td>
                         <td className="py-4 px-5">
@@ -497,9 +539,8 @@ export function Registry() {
                               <Droplets className="w-5 h-5" />
                             </div>
                             <div className="min-w-0">
-                              <p className="font-bold text-slate-900">{cw.name || 'Unnamed Facility'}</p>
-                              <p className="text-xs text-slate-400 font-mono mt-0.5 truncate max-w-[180px]">
-                                ID: {cw.id.slice(0, 8)}
+                              <p className="font-bold text-slate-900 leading-snug">
+                                {formatCarwashDisplay(cw)}
                               </p>
                             </div>
                           </div>
@@ -511,12 +552,10 @@ export function Registry() {
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">
                             Sector: <span className="font-medium text-slate-700">{cw.sector || '—'}</span>
+                            {cw.cell ? (
+                              <> · Cell: <span className="font-medium text-slate-700">{cw.cell}</span></>
+                            ) : null}
                           </p>
-                          {cw.address && (
-                            <p className="text-[11px] text-slate-400 truncate max-w-[200px] mt-0.5">
-                              {cw.address}
-                            </p>
-                          )}
                         </td>
 
                         <td className="py-4 px-4">
@@ -582,7 +621,7 @@ export function Registry() {
                             {(user?.role === 'admin' || cw.created_by === user?.id) && (
                               <button
                                 id={`delete-btn-${cw.id}`}
-                                onClick={() => handleDelete(cw.id, cw.name)}
+                        onClick={() => handleDelete(cw.id, formatCarwashDisplay(cw))}
                                 className={`p-2 rounded-lg transition-colors ${
                                   isOnline
                                     ? 'text-slate-500 hover:text-red-600 hover:bg-red-50'
@@ -624,7 +663,7 @@ export function Registry() {
                           <Droplets className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-bold text-slate-900 text-base leading-tight truncate">{cw.name || 'Unnamed Facility'}</h3>
+                          <h3 className="font-bold text-slate-900 text-base leading-tight">{formatCarwashDisplay(cw)}</h3>
                           <p className="text-xs text-slate-500 mt-0.5 truncate">{cw.province} &bull; {cw.district}</p>
                         </div>
                       </div>
@@ -637,7 +676,7 @@ export function Registry() {
 
                     <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl mb-4">
                       <p><span className="font-semibold text-slate-700">Sector:</span> {cw.sector || '—'}</p>
-                      {cw.address && <p><span className="font-semibold text-slate-700">Address:</span> {cw.address}</p>}
+                      {cw.cell && <p><span className="font-semibold text-slate-700">Cell:</span> {cw.cell}</p>}
                       <p><span className="font-semibold text-slate-700">Contact:</span> {cw.contact_name || 'N/A'} {cw.phone ? `(${cw.phone})` : ''}</p>
                     </div>
                   </div>
@@ -655,7 +694,7 @@ export function Registry() {
                       </button>
                       {(user?.role === 'admin' || cw.created_by === user?.id) && (
                         <button
-                          onClick={() => handleDelete(cw.id, cw.name)}
+                          onClick={() => handleDelete(cw.id, formatCarwashDisplay(cw))}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -689,14 +728,14 @@ export function Registry() {
                   <Droplets className="w-6 h-6" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-slate-900 text-sm truncate">{cw.name || 'Unnamed Carwash'}</h3>
+                  <h3 className="font-bold text-slate-900 text-sm leading-snug">{formatCarwashDisplay(cw)}</h3>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
                       cw.verification_status === 'verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
                     }`}>
                       {cw.verification_status === 'verified' ? 'Verified' : 'Pending'}
                     </span>
-                    <span className="text-xs text-slate-500 truncate">{cw.district}, {cw.sector || '—'}</span>
+                    <span className="text-xs text-slate-500 truncate">{cw.district}{cw.cell ? `, ${cw.cell}` : cw.sector ? `, ${cw.sector}` : ''}</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -712,8 +751,7 @@ export function Registry() {
               </div>
               
               <div className="space-y-1.5 bg-slate-50 rounded-xl p-3 text-xs text-slate-600">
-                <p><span className="font-semibold text-slate-800">Location:</span> {cw.province} • {cw.district}{cw.sector ? ` • ${cw.sector}` : ''}</p>
-                {cw.address && <p><span className="font-semibold text-slate-800">Address:</span> {cw.address}</p>}
+                <p><span className="font-semibold text-slate-800">Location:</span> {cw.province} • {cw.district}{cw.sector ? ` • ${cw.sector}` : ''}{cw.cell ? ` • ${cw.cell}` : ''}</p>
                 <p><span className="font-semibold text-slate-800">Contact:</span> {cw.contact_name || 'N/A'} {cw.phone ? `(${cw.phone})` : ''}</p>
               </div>
 
@@ -726,7 +764,7 @@ export function Registry() {
                     <Edit2 className="w-3.5 h-3.5" /> Edit
                   </button>
                   <button 
-                    onClick={() => handleDelete(cw.id, cw.name)}
+                    onClick={() => handleDelete(cw.id, formatCarwashDisplay(cw))}
                     className="px-3.5 py-2 text-xs font-bold rounded-xl bg-red-50 text-red-600 border border-red-200/60 flex justify-center items-center"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

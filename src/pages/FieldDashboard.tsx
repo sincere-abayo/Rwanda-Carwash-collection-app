@@ -6,6 +6,7 @@ import { GeographicDistributionChart } from '../components/GeographicDistributio
 import { Plus, Droplets, MapPin, CheckCircle, Clock, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { formatCarwashDisplay } from '../lib/utils';
 
 export function FieldDashboard() {
   const user = useAuthStore(state => state.user);
@@ -125,9 +126,9 @@ export function FieldDashboard() {
                 <Droplets className="w-6 h-6" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-slate-900 truncate">{cw.name || 'Unnamed Carwash'}</h3>
+                <h3 className="font-semibold text-slate-900 leading-snug">{formatCarwashDisplay(cw)}</h3>
                 <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 truncate">
-                  <MapPin className="w-3 h-3 flex-shrink-0" /> {cw.sector}, {cw.district}
+                  <MapPin className="w-3 h-3 flex-shrink-0" /> {[cw.cell, cw.sector, cw.district].filter(Boolean).join(', ') || '—'}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">

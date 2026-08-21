@@ -19,6 +19,34 @@ export const PGUSER = process.env.PGUSER || 'postgres';
 export const PGDATABASE = process.env.PGDATABASE || 'postgres';
 export const PGPASSWORD = process.env.PGPASSWORD || '';
 export const DATABASE_URL = process.env.DATABASE_URL || '';
+/** Prefer pooler — direct db.*.supabase.co often resolves to IPv6 and fails on many networks */
+export const DATABASE_POOLER_URL = process.env.DATABASE_POOLER_URL || '';
+export const SUPABASE_REGION = process.env.SUPABASE_REGION || 'eu-central-1';
+
+function extractSupabaseProjectRef(): string | null {
+  const fromHost = (PGHOST || '').match(/^db\.([a-z0-9]+)\.supabase\.co$/i);
+  if (fromHost) return fromHost[1];
+  const fromUrl = (SUPABASE_URL || '').match(/https?:\/\/([a-z0-9]+)\.supabase\.co/i);
+  if (fromUrl) return fromUrl[1];
+  const fromDbUrl = (DATABASE_URL || '').match(/@db\.([a-z0-9]+)\.supabase\.co/i);
+  if (fromDbUrl) return fromDbUrl[1];
+  return null;
+}
+
+/** Session-mode pooler URL (IPv4-friendly). Used when direct Postgres is unreachable. */
+export function getSupabasePoolerUrl(): string | null {
+  if (DATABASE_POOLER_URL) return DATABASE_POOLER_URL;
+  if (!PGPASSWORD) return null;
+  const ref = extractSupabaseProjectRef();
+  if (!ref) return null;
+  const user = `postgres.${ref}`;
+  const pass = encodeURIComponent(PGPASSWORD);
+  return `postgresql://${user}:${pass}@aws-0-${SUPABASE_REGION}.pooler.supabase.com:6543/postgres`;
+}
+
+function isDirectSupabaseDbUrl(url: string): boolean {
+  return /@db\.[a-z0-9]+\.supabase\.co(:\d+)?\//i.test(url);
+}
 
 let supabaseInstance: SupabaseClient | null = null;
 let pgPoolInstance: pg.Pool | null = null;
@@ -47,14 +75,23 @@ export function getSupabaseClient(): SupabaseClient | null {
 // Initialize direct PostgreSQL connection pool
 export function getPgPool(): pg.Pool | null {
   if (pgPoolInstance) return pgPoolInstance;
-  
-  if (DATABASE_URL || (PGPASSWORD && PGHOST)) {
+
+  const poolerUrl = getSupabasePoolerUrl();
+  // Prefer pooler over direct db host — avoids IPv6 ENETUNREACH on many local networks
+  const connectionString =
+    (DATABASE_URL && !isDirectSupabaseDbUrl(DATABASE_URL) ? DATABASE_URL : null) ||
+    poolerUrl ||
+    DATABASE_URL ||
+    '';
+
+  if (connectionString || (PGPASSWORD && PGHOST)) {
     try {
-      const config: pg.PoolConfig = DATABASE_URL
+      const config: pg.PoolConfig = connectionString
         ? {
-            connectionString: DATABASE_URL,
+            connectionString,
             ssl: { rejectUnauthorized: false },
-            connectionTimeoutMillis: 2000,
+            connectionTimeoutMillis: 15000,
+            idleTimeoutMillis: 30000,
             max: 2,
           }
         : {
@@ -64,7 +101,8 @@ export function getPgPool(): pg.Pool | null {
             password: PGPASSWORD,
             database: PGDATABASE,
             ssl: { rejectUnauthorized: false },
-            connectionTimeoutMillis: 2000,
+            connectionTimeoutMillis: 15000,
+            idleTimeoutMillis: 30000,
             max: 2,
           };
 
@@ -72,7 +110,12 @@ export function getPgPool(): pg.Pool | null {
       pgPoolInstance.on('error', (err) => {
         console.warn('[PostgreSQL Pool Error]:', err.message);
       });
-      console.log(`[PostgreSQL Engine] Pool initialized`);
+      const via = connectionString.includes('pooler.supabase.com')
+        ? 'Supabase pooler'
+        : connectionString
+          ? 'DATABASE_URL'
+          : 'PGHOST';
+      console.log(`[PostgreSQL Engine] Pool initialized (${via})`);
       return pgPoolInstance;
     } catch (err: any) {
       console.warn('[PostgreSQL Engine] Pool skipped:', err.message);
@@ -88,6 +131,7 @@ export interface SupabaseCarwashRow {
   province: string;
   district: string;
   sector: string;
+  cell?: string | null;
   physical_address: string;
   primary_contact: string;
   phone_number: string;
@@ -206,6 +250,7 @@ export async function initializeDatabaseTables(): Promise<void> {
         province TEXT NOT NULL,
         district TEXT NOT NULL,
         sector TEXT NOT NULL,
+        cell TEXT,
         physical_address TEXT,
         primary_contact TEXT,
         phone_number TEXT,
@@ -222,6 +267,13 @@ export async function initializeDatabaseTables(): Promise<void> {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+
+    // Ensure cell column exists on older deployments
+    try {
+      await pool.query(`ALTER TABLE public.carwashes ADD COLUMN IF NOT EXISTS cell TEXT`);
+    } catch (alterErr: any) {
+      console.warn('[PostgreSQL] cell column notice:', alterErr.message);
+    }
 
     // 3. Audit logs table
     await pool.query(`
@@ -289,6 +341,7 @@ export async function dbUpsertCarwash(payload: any): Promise<{ success: boolean;
     province: payload.province || '',
     district: payload.district || '',
     sector: payload.sector || '',
+    cell: payload.cell || '',
     physical_address: payload.address || payload.physical_address || '',
     primary_contact: payload.contact_name || payload.primary_contact || '',
     phone_number: payload.phone || payload.phone_number || '',
@@ -323,13 +376,14 @@ export async function dbUpsertCarwash(payload: any): Promise<{ success: boolean;
       try {
         await pool.query(
           `INSERT INTO public.carwashes (
-            id, name, province, district, sector, physical_address, primary_contact, phone_number, status, sync_status, registration_date, field_officer_id, version
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            id, name, province, district, sector, cell, physical_address, primary_contact, phone_number, status, sync_status, registration_date, field_officer_id, version
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
             province = EXCLUDED.province,
             district = EXCLUDED.district,
             sector = EXCLUDED.sector,
+            cell = EXCLUDED.cell,
             physical_address = EXCLUDED.physical_address,
             primary_contact = EXCLUDED.primary_contact,
             phone_number = EXCLUDED.phone_number,
@@ -344,6 +398,7 @@ export async function dbUpsertCarwash(payload: any): Promise<{ success: boolean;
             row.province,
             row.district,
             row.sector,
+            row.cell || '',
             row.physical_address,
             row.primary_contact,
             row.phone_number,
@@ -564,6 +619,7 @@ export async function syncAllLocalToSupabase(): Promise<{
           province: cw.province || '',
           district: cw.district || '',
           sector: cw.sector || '',
+          cell: cw.cell || '',
           physical_address: cw.address || cw.physical_address || '',
           primary_contact: cw.contact_name || cw.primary_contact || '',
           phone_number: cw.phone || cw.phone_number || '',
@@ -615,13 +671,14 @@ export async function syncAllLocalToSupabase(): Promise<{
 
           await pool.query(
             `INSERT INTO public.carwashes (
-              id, name, province, district, sector, physical_address, primary_contact, phone_number, status, sync_status, registration_date, field_officer_id, version
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+              id, name, province, district, sector, cell, physical_address, primary_contact, phone_number, status, sync_status, registration_date, field_officer_id, version
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (id) DO UPDATE SET
               name = EXCLUDED.name,
               province = EXCLUDED.province,
               district = EXCLUDED.district,
               sector = EXCLUDED.sector,
+              cell = EXCLUDED.cell,
               physical_address = EXCLUDED.physical_address,
               primary_contact = EXCLUDED.primary_contact,
               phone_number = EXCLUDED.phone_number,
@@ -636,6 +693,7 @@ export async function syncAllLocalToSupabase(): Promise<{
               cw.province || '',
               cw.district || '',
               cw.sector || '',
+              cw.cell || '',
               cw.address || cw.physical_address || '',
               cw.contact_name || cw.primary_contact || '',
               cw.phone || cw.phone_number || '',

@@ -24,6 +24,7 @@ import {
   exportNationalPdfReport,
   fetchReportCarwashes,
 } from '../lib/reports';
+import { formatCarwashDisplay } from '../lib/utils';
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
@@ -75,7 +76,7 @@ export function AdminDashboard() {
       if (type === 'pdf') {
         await exportNationalPdfReport(payload);
       } else {
-        exportNationalExcelReport(payload);
+        await exportNationalExcelReport(payload);
       }
     } catch (err) {
       console.error('Report export failed:', err);
@@ -271,7 +272,7 @@ export function AdminDashboard() {
                   <table className="w-full text-left border-collapse min-w-[500px]">
                     <thead className="text-xs font-semibold uppercase text-blue-200 opacity-60 border-b border-white/10">
                       <tr>
-                        <th className="px-5 sm:px-6 py-4">Carwash Name</th>
+                        <th className="px-5 sm:px-6 py-4">Carwash Facility</th>
                         <th className="px-5 sm:px-6 py-4">Location</th>
                         <th className="px-5 sm:px-6 py-4">Status</th>
                         <th className="px-5 sm:px-6 py-4 text-right">Sync Time</th>
@@ -280,8 +281,8 @@ export function AdminDashboard() {
                     <tbody className="text-sm">
                       {stats?.recent?.map((cw: any) => (
                         <tr key={cw.id} onClick={() => navigate('/registry')} className="border-b border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
-                          <td className="px-5 sm:px-6 py-4 font-medium group-hover:text-emerald-300 transition-colors">{cw.name || 'Unnamed'}</td>
-                          <td className="px-5 sm:px-6 py-4 opacity-80">{cw.sector}, {cw.district}</td>
+                          <td className="px-5 sm:px-6 py-4 font-medium group-hover:text-emerald-300 transition-colors">{formatCarwashDisplay(cw)}</td>
+                          <td className="px-5 sm:px-6 py-4 opacity-80">{[cw.cell, cw.sector, cw.district].filter(Boolean).join(', ') || '—'}</td>
                           <td className="px-5 sm:px-6 py-4">
                             <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${cw.verification_status === 'verified' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-orange-500/20 text-orange-300 border-orange-500/30'}`}>
                               {cw.verification_status === 'verified' ? 'Verified' : 'Pending'}
