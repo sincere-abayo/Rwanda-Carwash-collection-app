@@ -13,6 +13,8 @@ export interface LocalCarwash {
   phone?: string;
   status: 'active' | 'inactive' | 'closed';
   verification_status: 'verified' | 'unverified';
+  /** ISO date (YYYY-MM-DD or full ISO) when the carwash was registered in the field */
+  registration_date?: string;
   created_at: string;
   updated_at: string;
   created_by: string;

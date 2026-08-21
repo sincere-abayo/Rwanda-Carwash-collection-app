@@ -436,7 +436,7 @@ export function Registry() {
 
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                     <span className="text-[11px] text-slate-400">
-                      {format(new Date(cw.updated_at), 'MMM d, yyyy')}
+                      {format(new Date(cw.registration_date || cw.created_at || cw.updated_at), 'MMM d, yyyy')}
                     </span>
                     <div className="flex items-center gap-1">
                       <button
@@ -490,7 +490,7 @@ export function Registry() {
                     <Clock className="w-4 h-4 text-amber-500" />
                   )}
                   <span className="text-[10px] text-slate-400">
-                    {format(new Date(cw.updated_at), 'MMM d')}
+                    {format(new Date(cw.registration_date || cw.created_at || cw.updated_at), 'MMM d')}
                   </span>
                 </div>
               </div>

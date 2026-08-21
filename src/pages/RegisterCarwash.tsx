@@ -1,535 +1,615 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, MapPin, Save, Check, Droplets, Phone, User, Building, Compass, AlertCircle, ExternalLink } from 'lucide-react';
+import {
+  ArrowLeft,
+  MapPin,
+  Save,
+  Check,
+  Phone,
+  User,
+  Building,
+  Plus,
+  Trash2,
+  Calendar,
+  Layers,
+  Copy,
+} from 'lucide-react';
 import { RWANDA_HIERARCHY } from '../lib/location-data';
-import { db } from '../db/client';
+import { db, type LocalCarwash } from '../db/client';
 import { generateId } from '../lib/utils';
 import { useAuthStore } from '../store/useAuthStore';
 import { performSync } from '../hooks/useSyncEngine';
+
+type EntryDraft = {
+  key: string;
+  name: string;
+  address: string;
+  contact_name: string;
+  phone: string;
+  notes: string;
+  status: 'active' | 'inactive';
+};
+
+function todayLocalISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function emptyEntry(): EntryDraft {
+  return {
+    key: generateId(),
+    name: '',
+    address: '',
+    contact_name: '',
+    phone: '',
+    notes: '',
+    status: 'active',
+  };
+}
+
+function registrationToCreatedAt(dateStr: string): string {
+  // Store noon local as ISO so date-only fields don't shift timezone
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return new Date().toISOString();
+  return new Date(y, m - 1, d, 12, 0, 0).toISOString();
+}
 
 export function RegisterCarwash() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
-  const user = useAuthStore(state => state.user);
-  
-  const [formData, setFormData] = useState({
-    name: '',
+  const user = useAuthStore((state) => state.user);
+  const isEdit = Boolean(editId);
+
+  const [shared, setShared] = useState({
+    registration_date: todayLocalISO(),
     province: '',
     district: '',
     sector: '',
-    address: '',
-    contact_name: '',
-    phone: '',
-    notes: '',
-    status: 'active' as 'active' | 'inactive',
-    lat: '',
-    lng: ''
   });
-  
-  const [isCapturingGPS, setIsCapturingGPS] = useState(false);
-  const [gpsCaptured, setGpsCaptured] = useState(false);
-  const [gpsError, setGpsError] = useState<string | null>(null);
-  const [originalRecord, setOriginalRecord] = useState<any>(null);
+
+  const [entries, setEntries] = useState<EntryDraft[]>([emptyEntry()]);
+  const [originalRecord, setOriginalRecord] = useState<LocalCarwash | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const lastNameInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (editId) {
-      db.carwashes.get(editId).then(record => {
-        if (record) {
-          setOriginalRecord(record);
-          setFormData({
-            name: record.name || '',
-            province: record.province || '',
-            district: record.district || '',
-            sector: record.sector || '',
-            address: record.address || '',
-            contact_name: record.contact_name || '',
-            phone: record.phone || '',
-            notes: record.notes || '',
-            status: record.status || 'active',
-            lat: record.lat ? record.lat.toString() : '',
-            lng: record.lng ? record.lng.toString() : ''
-          });
-          if (record.lat && record.lng) setGpsCaptured(true);
-        }
+    if (!editId) return;
+    db.carwashes.get(editId).then((record) => {
+      if (!record) return;
+      setOriginalRecord(record);
+      const dateOnly = record.registration_date
+        ? record.registration_date.slice(0, 10)
+        : record.created_at
+          ? record.created_at.slice(0, 10)
+          : todayLocalISO();
+      setShared({
+        registration_date: dateOnly,
+        province: record.province || '',
+        district: record.district || '',
+        sector: record.sector || '',
       });
-    }
+      setEntries([
+        {
+          key: record.id,
+          name: record.name || '',
+          address: record.address || '',
+          contact_name: record.contact_name || '',
+          phone: record.phone || '',
+          notes: record.notes || '',
+          status: record.status === 'inactive' || record.status === 'closed' ? 'inactive' : 'active',
+        },
+      ]);
+    });
   }, [editId]);
 
-  const handleCaptureGPS = () => {
-    setIsCapturingGPS(true);
-    setGpsError(null);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setFormData(prev => ({
-            ...prev,
-            lat: pos.coords.latitude.toFixed(6),
-            lng: pos.coords.longitude.toFixed(6)
-          }));
-          setIsCapturingGPS(false);
-          setGpsCaptured(true);
-        },
-        (err) => {
-          setGpsError('Could not capture location. Please ensure location permissions are enabled.');
-          setIsCapturingGPS(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      setGpsError('Geolocation is not supported by this browser.');
-      setIsCapturingGPS(false);
-    }
+  const provinces = Object.keys(RWANDA_HIERARCHY);
+  const districts = shared.province
+    ? Object.keys(RWANDA_HIERARCHY[shared.province as keyof typeof RWANDA_HIERARCHY] || {})
+    : [];
+  const sectors =
+    shared.province && shared.district
+      ? (RWANDA_HIERARCHY[shared.province as keyof typeof RWANDA_HIERARCHY] as Record<string, string[]>)?.[
+          shared.district
+        ] || []
+      : [];
+
+  const locationReady = Boolean(shared.province && shared.district && shared.registration_date);
+  const filledEntries = entries.filter((e) => e.name.trim() || e.address.trim() || e.contact_name.trim() || e.phone.trim());
+  const canSave = locationReady && filledEntries.length > 0;
+
+  const updateEntry = (key: string, patch: Partial<EntryDraft>) => {
+    setEntries((prev) => prev.map((e) => (e.key === key ? { ...e, ...patch } : e)));
+  };
+
+  const addEntry = () => {
+    setEntries((prev) => [...prev, emptyEntry()]);
+    setTimeout(() => lastNameInputRef.current?.focus(), 50);
+  };
+
+  const removeEntry = (key: string) => {
+    setEntries((prev) => (prev.length <= 1 ? prev : prev.filter((e) => e.key !== key)));
+  };
+
+  const duplicateEntry = (key: string) => {
+    setEntries((prev) => {
+      const source = prev.find((e) => e.key === key);
+      if (!source) return prev;
+      const copy: EntryDraft = {
+        ...source,
+        key: generateId(),
+        name: source.name ? `${source.name} (copy)` : '',
+      };
+      const idx = prev.findIndex((e) => e.key === key);
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.province || !formData.district || !formData.sector) {
-      alert("Please select Province, District, and Sector.");
+    if (!shared.province || !shared.district) {
+      alert('Please select Province and District.');
+      return;
+    }
+    if (!shared.registration_date) {
+      alert('Please set the registration date.');
+      return;
+    }
+
+    const toSave = isEdit ? entries : filledEntries;
+    if (toSave.length === 0) {
+      alert('Add at least one carwash with a name, address, or contact.');
       return;
     }
 
     setIsSubmitting(true);
+    setSaveMessage(null);
     try {
-      const targetId = editId || generateId();
       const now = new Date().toISOString();
-      
-      const record = {
-        id: targetId,
-        name: formData.name || 'Unnamed Carwash',
-        province: formData.province,
-        district: formData.district,
-        sector: formData.sector,
-        address: formData.address,
-        contact_name: formData.contact_name,
-        phone: formData.phone,
-        notes: formData.notes,
-        lat: formData.lat ? parseFloat(formData.lat) : undefined,
-        lng: formData.lng ? parseFloat(formData.lng) : undefined,
-        status: formData.status,
-        verification_status: originalRecord ? originalRecord.verification_status : ('verified' as const),
-        created_at: originalRecord ? originalRecord.created_at : now,
-        updated_at: now,
-        created_by: originalRecord ? originalRecord.created_by : user!.id,
-        sync_status: 'PENDING' as const
-      };
-
-      // Save to local IndexedDB and Queue for background sync
-      await db.transaction('rw', db.carwashes, db.sync_queue, async () => {
-        await db.carwashes.put(record);
-        await db.sync_queue.add({
-          id: generateId(),
-          type: 'upsert_carwash',
-          payload: record,
-          created_at: now
-        });
+      const createdAtFromDate = registrationToCreatedAt(shared.registration_date);
+      const records: LocalCarwash[] = toSave.map((entry, index) => {
+        const targetId = isEdit && originalRecord ? originalRecord.id : generateId();
+        return {
+          id: targetId,
+          name: entry.name.trim() || `Unnamed Carwash ${index + 1}`,
+          province: shared.province,
+          district: shared.district,
+          sector: shared.sector || '',
+          address: entry.address.trim(),
+          contact_name: entry.contact_name.trim(),
+          phone: entry.phone.trim(),
+          notes: entry.notes.trim(),
+          // GPS hidden for now — keep undefined
+          lat: undefined,
+          lng: undefined,
+          status: entry.status,
+          verification_status: isEdit && originalRecord ? originalRecord.verification_status : 'verified',
+          registration_date: createdAtFromDate,
+          created_at: isEdit && originalRecord ? originalRecord.created_at : createdAtFromDate,
+          updated_at: now,
+          created_by: isEdit && originalRecord ? originalRecord.created_by : user!.id,
+          sync_status: 'PENDING',
+        };
       });
 
-      // Trigger immediate live sync to Supabase PostgreSQL
-      performSync().catch(err => console.warn('Background sync on save:', err));
+      await db.transaction('rw', db.carwashes, db.sync_queue, async () => {
+        for (const record of records) {
+          await db.carwashes.put(record);
+          await db.sync_queue.add({
+            id: generateId(),
+            type: 'upsert_carwash',
+            payload: {
+              ...record,
+              registration_date: new Date(record.registration_date || record.created_at).getTime(),
+              isNew: !(isEdit && originalRecord),
+            },
+            created_at: now,
+          });
+        }
+      });
+
+      performSync().catch((err) => console.warn('Background sync on save:', err));
+
+      if (!isEdit && records.length > 1) {
+        setSaveMessage(`Saved ${records.length} carwashes in ${shared.district}.`);
+      }
 
       navigate('/registry', { replace: true });
     } catch (error) {
       console.error('Failed to save record', error);
-      alert('An error occurred while saving the carwash record.');
+      alert('An error occurred while saving.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Hierarchy derivation
-  const provinces = Object.keys(RWANDA_HIERARCHY);
-  const districts = formData.province ? Object.keys(RWANDA_HIERARCHY[formData.province as keyof typeof RWANDA_HIERARCHY] || {}) : [];
-  const sectors = formData.province && formData.district 
-    ? (RWANDA_HIERARCHY[formData.province as keyof typeof RWANDA_HIERARCHY] as any)?.[formData.district] || []
-    : [];
+  const locationLabel = [shared.sector, shared.district, shared.province].filter(Boolean).join(' · ');
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      {/* ================= MOBILE HEADER (< md) ================= */}
-      <header className="md:hidden bg-surface px-4 h-14 flex items-center justify-between sticky top-0 z-20 border-b border-slate-200/80">
-        <div className="flex items-center gap-3">
-          <button 
-            id="mobile-form-back"
-            onClick={() => navigate(-1)} 
-            className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="font-bold text-base text-slate-900">
-            {editId ? 'Edit Carwash' : 'Register Carwash'}
-          </h1>
-        </div>
-        <button
-          id="mobile-form-save-quick"
-          onClick={handleSave}
-          disabled={isSubmitting}
-          className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg disabled:opacity-50"
-        >
-          {isSubmitting ? 'Saving...' : 'Save'}
-        </button>
-      </header>
-
-      {/* ================= DESKTOP HEADER (>= md) ================= */}
-      <header className="hidden md:block bg-surface border-b border-slate-200/80 px-8 py-6 sticky top-0 z-20 backdrop-blur-md bg-white/90">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-1">
-              <span className="cursor-pointer hover:text-slate-600" onClick={() => navigate('/registry')}>Registry</span>
-              <span>/</span>
-              <span className="text-blue-600">{editId ? 'Edit Entry' : 'New Registration'}</span>
+      {/* Fixed top bar — stays visible while Layout scrolls */}
+      <header className="fixed top-0 left-0 right-0 md:left-64 lg:left-72 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm px-3 sm:px-6 md:px-8 py-2.5 sm:py-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              id="form-back-btn"
+              type="button"
+              onClick={() => navigate(-1)}
+              className="p-2 -ml-1 rounded-full hover:bg-slate-100 text-slate-700 shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="font-bold text-sm sm:text-base md:text-xl text-slate-900 truncate">
+                {isEdit ? 'Edit Carwash' : 'Bulk Register'}
+              </h1>
+              <p className="hidden sm:block text-[11px] text-slate-500 truncate">
+                {isEdit
+                  ? 'Update registration details'
+                  : 'Shared date & location, then add facilities'}
+              </p>
             </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              {editId ? 'Edit Carwash Registration' : 'Register New Carwash Facility'}
-            </h1>
-            <p className="text-slate-500 text-sm mt-0.5">
-              Collect verified location, GPS coordinates, and administrative records for the national database
-            </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              className="hidden sm:inline-flex px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               Cancel
             </button>
             <button
+              id="fixed-save-btn"
               type="button"
               onClick={handleSave}
-              disabled={isSubmitting}
-              className="bg-brand-primary hover:bg-brand-dark text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-blue-500/20 flex items-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
+              disabled={isSubmitting || !canSave}
+              className="bg-brand-primary hover:bg-brand-dark text-white px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 flex items-center gap-1.5 disabled:opacity-50"
             >
-              <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving...' : 'Save & Verify Record'}</span>
+              <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span>
+                {isSubmitting
+                  ? 'Saving...'
+                  : isEdit
+                    ? 'Save'
+                    : `Save${filledEntries.length ? ` ${filledEntries.length}` : ''}`}
+              </span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* ================= MAIN FORM CONTENT ================= */}
-      <main className="px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto w-full flex-1">
-        <form onSubmit={handleSave} className="space-y-6">
-          
-          {/* Responsive Layout Grid: 1 col on Mobile, 2 cols on Desktop */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* COLUMN 1: Basic & Contact Information */}
-            <div className="space-y-6">
-              {/* Facility Information Card */}
-              <div className="bg-surface p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                    <Building className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900">Facility Details</h2>
-                    <p className="text-[11px] text-slate-500">Business identification and operational status</p>
-                  </div>
-                </div>
+      {/* Spacer so content isn't under the fixed bar */}
+      <div className="h-14 sm:h-[4.25rem] shrink-0" aria-hidden="true" />
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Carwash Name <span className="text-slate-400 font-normal">(Optional)</span>
-                  </label>
-                  <input
-                    id="input-cw-name"
-                    type="text"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                    placeholder="e.g. Clean Ride Kigali"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
-                  />
+      <main className="px-3 sm:px-6 md:px-8 py-5 md:py-8 max-w-4xl mx-auto w-full flex-1">
+        <form onSubmit={handleSave} className="space-y-5">
+          {/* Shared: Date + Hierarchy — always 2 columns */}
+          <section className="bg-surface p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+            <div className="flex items-start justify-between gap-3 pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                  <Layers className="w-4 h-4" />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Operational Status
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({...formData, status: 'active'})}
-                      className={`py-2.5 px-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition-all ${
-                        formData.status === 'active' 
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-500 ring-2 ring-emerald-500/20' 
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5" /> Active Facility
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({...formData, status: 'inactive'})}
-                      className={`py-2.5 px-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition-all ${
-                        formData.status === 'inactive' 
-                          ? 'bg-amber-50 text-amber-700 border-amber-500 ring-2 ring-amber-500/20' 
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      Inactive / Closed
-                    </button>
-                  </div>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-bold text-slate-900">Shared Location &amp; Date</h2>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    Applied to every carwash you add below
+                  </p>
                 </div>
               </div>
-
-              {/* Contact Information Card */}
-              <div className="bg-surface p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900">Owner & Manager Contact</h2>
-                    <p className="text-[11px] text-slate-500">Representative on-site for registry compliance</p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Contact Person / Owner Name
-                  </label>
-                  <input
-                    id="input-cw-contact"
-                    type="text"
-                    value={formData.contact_name}
-                    onChange={e => setFormData({...formData, contact_name: e.target.value})}
-                    placeholder="e.g. Jean Pierre Mugabo"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Phone Number
-                  </label>
-                  <input
-                    id="input-cw-phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
-                    placeholder="e.g. +250 788 123 456"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Field Notes & Observations
-                  </label>
-                  <textarea
-                    id="input-cw-notes"
-                    rows={3}
-                    value={formData.notes}
-                    onChange={e => setFormData({...formData, notes: e.target.value})}
-                    placeholder="Add water source details, washing bays count, or facility observations..."
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm resize-none"
-                  />
-                </div>
-              </div>
+              {locationReady && (
+                <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full max-w-[40%] sm:max-w-[240px] truncate">
+                  <Check className="w-3 h-3 shrink-0" />
+                  {locationLabel}
+                </span>
+              )}
             </div>
 
-            {/* COLUMN 2: Location & Geolocation Information */}
-            <div className="space-y-6">
-              
-              {/* GPS Geolocation Card */}
-              <div className="bg-surface p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                    <Compass className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900">GPS Coordinates</h2>
-                    <p className="text-[11px] text-slate-500">Accurate satellite coordinates for mapping</p>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-3 sm:gap-3.5">
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Date <span className="text-red-500">*</span>
+                  </span>
+                </label>
+                <input
+                  id="input-cw-reg-date"
+                  type="date"
+                  required
+                  value={shared.registration_date}
+                  onChange={(e) => setShared({ ...shared, registration_date: e.target.value })}
+                  className="w-full px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-xs sm:text-sm font-medium"
+                />
+              </div>
 
-                <button
-                  id="btn-capture-gps"
-                  type="button"
-                  onClick={handleCaptureGPS}
-                  className={`w-full py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all shadow-sm ${
-                    gpsCaptured 
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' 
-                      : 'bg-brand-primary text-white hover:bg-brand-dark active:scale-[0.98]'
-                  }`}
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Province <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="select-cw-province"
+                  required
+                  value={shared.province}
+                  onChange={(e) =>
+                    setShared({ ...shared, province: e.target.value, district: '', sector: '' })
+                  }
+                  className="w-full px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-xs sm:text-sm font-medium text-slate-800"
                 >
-                  {gpsCaptured ? (
-                    <><Check className="w-4 h-4" /> Location Captured Successfully</>
-                  ) : isCapturingGPS ? (
-                    <><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /> Acquiring High-Accuracy GPS...</>
-                  ) : (
-                    <><MapPin className="w-4 h-4" /> Capture Live GPS Location</>
-                  )}
-                </button>
-
-                {gpsError && (
-                  <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span>{gpsError}</span>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Latitude</label>
-                    <input
-                      id="input-cw-lat"
-                      type="text"
-                      value={formData.lat}
-                      onChange={e => setFormData({...formData, lat: e.target.value})}
-                      placeholder="-1.9441"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Longitude</label>
-                    <input
-                      id="input-cw-lng"
-                      type="text"
-                      value={formData.lng}
-                      onChange={e => setFormData({...formData, lng: e.target.value})}
-                      placeholder="30.0619"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                </div>
-
-                {formData.lat && formData.lng && (
-                  <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between text-xs">
-                    <span className="text-blue-800 font-medium">Verify on Map:</span>
-                    <a
-                      href={`https://maps.google.com/?q=${formData.lat},${formData.lng}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 font-bold hover:underline inline-flex items-center gap-1"
-                    >
-                      <span>Open Google Maps</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                )}
+                  <option value="">Select</option>
+                  {provinces.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Administrative Division Card */}
-              <div className="bg-surface p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900">Administrative Hierarchy</h2>
-                    <p className="text-[11px] text-slate-500">Rwanda Provinces, Districts, and Sectors</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3.5">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                      Province <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="select-cw-province"
-                      required
-                      value={formData.province}
-                      onChange={e => setFormData({...formData, province: e.target.value, district: '', sector: ''})}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-sm font-medium text-slate-800"
-                    >
-                      <option value="">Select Province</option>
-                      {provinces.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                      District <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="select-cw-district"
-                      required
-                      disabled={!formData.province}
-                      value={formData.district}
-                      onChange={e => setFormData({...formData, district: e.target.value, sector: ''})}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-sm font-medium text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">Select District</option>
-                      {districts.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                      Sector <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="select-cw-sector"
-                      required
-                      disabled={!formData.district}
-                      value={formData.sector}
-                      onChange={e => setFormData({...formData, sector: e.target.value})}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-sm font-medium text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">Select Sector</option>
-                      {sectors.map((s: string) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                      Physical Street Address / Landmark
-                    </label>
-                    <input
-                      id="input-cw-address"
-                      type="text"
-                      value={formData.address}
-                      onChange={e => setFormData({...formData, address: e.target.value})}
-                      placeholder="e.g. KG 15 Ave, Opposite Bank of Kigali"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  District <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="select-cw-district"
+                  required
+                  disabled={!shared.province}
+                  value={shared.district}
+                  onChange={(e) => setShared({ ...shared, district: e.target.value, sector: '' })}
+                  className="w-full px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-xs sm:text-sm font-medium text-slate-800 disabled:opacity-50"
+                >
+                  <option value="">Select</option>
+                  {districts.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
               </div>
 
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Sector <span className="text-slate-400 font-normal normal-case">(opt.)</span>
+                </label>
+                <select
+                  id="select-cw-sector"
+                  disabled={!shared.district}
+                  value={shared.sector}
+                  onChange={(e) => setShared({ ...shared, sector: e.target.value })}
+                  className="w-full px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50 text-xs sm:text-sm font-medium text-slate-800 disabled:opacity-50"
+                >
+                  <option value="">Any</option>
+                  {sectors.map((s: string) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
 
-          {/* Mobile Bottom Submit Button */}
-          <div className="md:hidden pt-4">
-            <button
-              id="mobile-btn-save-carwash"
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-brand-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-brand-dark transition-colors active:scale-[0.98] shadow-lg shadow-blue-500/25 text-base disabled:opacity-50"
-            >
-              <Save className="w-5 h-5" />
-              <span>{isSubmitting ? 'Saving...' : 'Save & Verify Record'}</span>
-            </button>
-          </div>
+            {/* GPS Coordinates — hidden for now
+            <div>GPS capture UI removed from active form</div>
+            */}
+          </section>
 
-          {/* Desktop Form Footer */}
-          <div className="hidden md:flex items-center justify-end gap-3 pt-6 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-6 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              id="desktop-btn-save-carwash"
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-brand-primary hover:bg-brand-dark text-white px-8 py-3 rounded-xl font-bold text-sm shadow-md shadow-blue-500/20 flex items-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Saving...' : 'Save & Verify Carwash'}</span>
-            </button>
+          {/* Bulk carwash entries */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Building className="w-4 h-4 text-blue-600" />
+                  {isEdit ? 'Carwash Details' : 'Carwashes at this location'}
+                </h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {isEdit
+                    ? 'Update name, address, and contact'
+                    : 'Add name, landmark, then contact person — one card per facility'}
+                </p>
+              </div>
+              {!isEdit && (
+                <span className="text-[11px] font-bold tabular-nums text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                  {filledEntries.length} ready
+                </span>
+              )}
+            </div>
+
+            {!locationReady && !isEdit && (
+              <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 px-4 py-3 text-xs text-amber-800 flex items-start gap-2">
+                <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
+                Choose registration date, province, and district first — then add facilities below.
+              </div>
+            )}
+
+            <div className={`space-y-3 transition-opacity ${locationReady || isEdit ? 'opacity-100' : 'opacity-60'}`}>
+              {entries.map((entry, index) => {
+                const isLast = index === entries.length - 1;
+                return (
+                  <div
+                    key={entry.key}
+                    className="bg-surface rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-slate-50/80 border-b border-slate-100">
+                      <span className="text-xs font-bold text-slate-700">
+                        Facility #{index + 1}
+                        {entry.name.trim() ? (
+                          <span className="font-medium text-slate-500"> · {entry.name.trim()}</span>
+                        ) : null}
+                      </span>
+                      {!isEdit && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            title="Duplicate row"
+                            onClick={() => duplicateEntry(entry.key)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Remove"
+                            disabled={entries.length <= 1}
+                            onClick={() => removeEntry(entry.key)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-3 sm:p-5 grid grid-cols-2 gap-3 sm:gap-3.5">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                          Carwash Name
+                        </label>
+                        <input
+                          ref={isLast ? lastNameInputRef : undefined}
+                          id={`input-cw-name-${index}`}
+                          type="text"
+                          value={entry.name}
+                          onChange={(e) => updateEntry(entry.key, { name: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isEdit && isLast && entry.name.trim()) {
+                              e.preventDefault();
+                              addEntry();
+                            }
+                          }}
+                          placeholder="e.g. Clean Ride Kigali"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                          Physical Street Address / Landmark
+                        </label>
+                        <input
+                          id={`input-cw-address-${index}`}
+                          type="text"
+                          value={entry.address}
+                          onChange={(e) => updateEntry(entry.key, { address: e.target.value })}
+                          placeholder="e.g. KG 15 Ave, opposite Bank of Kigali"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                          <span className="inline-flex items-center gap-1">
+                            <User className="w-3 h-3" /> Contact Person
+                          </span>
+                        </label>
+                        <input
+                          id={`input-cw-contact-${index}`}
+                          type="text"
+                          value={entry.contact_name}
+                          onChange={(e) => updateEntry(entry.key, { contact_name: e.target.value })}
+                          placeholder="e.g. Jean Pierre Mugabo"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                          <span className="inline-flex items-center gap-1">
+                            <Phone className="w-3 h-3" /> Phone
+                          </span>
+                        </label>
+                        <input
+                          id={`input-cw-phone-${index}`}
+                          type="tel"
+                          value={entry.phone}
+                          onChange={(e) => updateEntry(entry.key, { phone: e.target.value })}
+                          placeholder="+250 788 123 456"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                          Notes <span className="text-slate-400 font-normal normal-case">(optional)</span>
+                        </label>
+                        <input
+                          id={`input-cw-notes-${index}`}
+                          type="text"
+                          value={entry.notes}
+                          onChange={(e) => updateEntry(entry.key, { notes: e.target.value })}
+                          placeholder="Water source, bays, observations..."
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                          Status
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateEntry(entry.key, { status: 'active' })}
+                            className={`py-2.5 px-2 rounded-xl text-[11px] font-bold border ${
+                              entry.status === 'active'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-500'
+                                : 'bg-slate-50 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            Active
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateEntry(entry.key, { status: 'inactive' })}
+                            className={`py-2.5 px-2 rounded-xl text-[11px] font-bold border ${
+                              entry.status === 'inactive'
+                                ? 'bg-amber-50 text-amber-700 border-amber-500'
+                                : 'bg-slate-50 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            Inactive
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {!isEdit && (
+              <button
+                type="button"
+                id="btn-add-another-carwash"
+                onClick={addEntry}
+                disabled={!locationReady}
+                className="w-full py-3.5 rounded-2xl border-2 border-dashed border-blue-300 text-blue-700 font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-50 hover:border-blue-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-4 h-4" />
+                Add another carwash here
+              </button>
+            )}
+          </section>
+
+          {saveMessage && (
+            <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2">
+              {saveMessage}
+            </p>
+          )}
+
+          <div className="pt-2 pb-6 text-center sm:text-left">
+            <p className="text-[11px] sm:text-xs text-slate-500">
+              {locationReady
+                ? `All entries share: ${locationLabel} · ${shared.registration_date}`
+                : 'Complete shared location (date, province, district) to enable save'}
+            </p>
           </div>
         </form>
       </main>
     </div>
   );
 }
-
